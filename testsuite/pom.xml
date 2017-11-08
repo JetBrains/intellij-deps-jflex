@@ -21,7 +21,7 @@
     </license>
   </licenses>
   <modules>
-    <module>jflex-testsuite-maven-plugin</module>
+<!--    <module>jflex-testsuite-maven-plugin</module>-->
     <!-- The testcases module can only be successfully run from its own   -->
     <!-- directory; otherwise, relative path specifications don't resolve -->
     <!-- properly.                                                        -->
