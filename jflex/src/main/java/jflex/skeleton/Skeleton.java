@@ -37,7 +37,7 @@ import jflex.logging.Out;
 public class Skeleton {
 
   /** location of default skeleton */
-  private static final String DEFAULT_LOC = "jflex/skeleton.default";
+  private static final String DEFAULT_LOC = "jflex/idea-flex.skeleton";
 
   /** expected number of sections in the skeleton file */
   private static final int size = 21;
