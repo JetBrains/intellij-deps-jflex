@@ -191,7 +191,6 @@
               <goal>shade</goal>
             </goals>
             <configuration>
-              <finalName>${project.artifactId}-full-${project.version}</finalName>
               <artifactSet>
                 <includes>
                   <include>com.github.vbmacher:java-cup-runtime</include>
