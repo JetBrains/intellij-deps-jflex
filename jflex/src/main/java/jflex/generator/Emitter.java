@@ -1406,10 +1406,10 @@ public final class Emitter {
 
     if (scanner.debugOption()) {
       println("");
-      println("  private static String zzToPrintable(String str) {");
+      println("  private static String zzToPrintable(CharSequence str) {");
       println("    StringBuilder builder = new StringBuilder();");
       println("    for (int n = 0 ; n < str.length() ; ) {");
-      println("      int ch = str.codePointAt(n);");
+      println("      int ch = Character.codePointAt(str, n);");
       println("      int charCount = Character.charCount(ch);");
       println("      n += charCount;");
       println("      if (ch > 31 && ch < 127) {");
