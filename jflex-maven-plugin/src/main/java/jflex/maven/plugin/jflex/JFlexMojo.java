@@ -226,7 +226,7 @@ public class JFlexMojo extends AbstractMojo {
     Options.dot = dot;
     Options.legacy_dot = legacyDot;
     if (skeleton != null) {
-      OptionUtils.setSkeleton(skeleton);
+      OptionUtils.setSkeleton(new File(project.getBasedir().toString() + "jflex/src/main/jflex/kotlin_skeleton.nested"));
     }
     Options.jlex = jlex;
 
