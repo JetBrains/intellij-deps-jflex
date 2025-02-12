@@ -55,9 +55,9 @@
   <build>
     <plugins>
         <plugin>
-        <groupId>org.jetbrains.intellij.deps.jflex</groupId>
+        <groupId>de.jflex</groupId>
         <artifactId>jflex-maven-plugin</artifactId>
-        <version>1.9.2</version>
+        <version>1.9.1</version>
         <executions>
           <execution>
             <?m2e execute onConfiguration,onIncremental?>
