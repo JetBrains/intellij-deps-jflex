@@ -87,9 +87,7 @@ public class JFlexMojo extends AbstractMojo {
   private boolean dot;
 
   /** Use external skeleton file. */
-  @Parameter(
-      defaultValue =
-          "/home/Codrin.Ogreanu/IdeaProjects/jflex/jflex/src/main/jflex/kotlin_skeleton.nested")
+  @Parameter(defaultValue = "../../../jflex/src/main/jflex/kotlin_skeleton.nested")
   private File skeleton;
 
   /** Strict JLex compatibility. */
