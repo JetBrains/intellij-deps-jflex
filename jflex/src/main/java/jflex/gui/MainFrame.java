@@ -31,7 +31,7 @@ import jflex.logging.Out;
  * JFlex main application frame (GUI mode only)
  *
  * @author Gerwin Klein
- * @version JFlex 1.10.14
+ * @version JFlex 1.10.15
  */
 public final class MainFrame extends Frame {
 

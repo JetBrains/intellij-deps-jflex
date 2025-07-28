@@ -9,7 +9,7 @@
   <parent>
     <groupId>org.jetbrains.intellij.deps.jflex</groupId>
     <artifactId>jflex-parent</artifactId>
-    <version>1.10.14</version>
+    <version>1.10.15</version>
     <relativePath>../pom.xml</relativePath>
   </parent>
   <name>JFlex</name>

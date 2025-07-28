@@ -28,7 +28,7 @@ import jflex.skeleton.Skeleton;
  * <p>Table compression, String packing etc. is also done here.
  *
  * @author Gerwin Klein
- * @version JFlex 1.10.14
+ * @version JFlex 1.10.15
  */
 public final class Emitter extends IEmitter {
   // bit masks for state attributes

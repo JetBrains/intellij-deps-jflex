@@ -11,7 +11,7 @@ import jflex.logging.Out;
  * A list of pairs of states. Used in old DFA minimization.
  *
  * @author Gerwin Klein
- * @version JFlex 1.10.14
+ * @version JFlex 1.10.15
  */
 public final class StatePairList {
 
