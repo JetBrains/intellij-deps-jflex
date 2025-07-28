@@ -1128,8 +1128,7 @@ public final class KotlinEmitter extends IEmitter {
 
       println("            " + action.content);
       println("            }");
-      println("          // fall through");
-      println("          " + (i++) + " -> break");
+      println("          " + (i++) + " -> { /* do nothing */ }");
     }
   }
 
