@@ -35,3 +35,5 @@ buildtools
 # release files
 /release
 /out
+
+**/.DS_Store
