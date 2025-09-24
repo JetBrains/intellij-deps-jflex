@@ -1084,7 +1084,7 @@ public final class KotlinEmitter extends IEmitter {
       }
 
       if (action.lookAhead() == Action.Kind.GENERAL_LOOK) {
-        println("            // general lookahead, find correct zzMarkedPos");
+        println("          // general lookahead, find correct zzMarkedPos");
         println("            var zzFState = " + dfa.entryState(action.getEntryState()));
         println("            var zzFPos = zzStartRead");
         println("            if (zzFin == null) {");
@@ -1107,7 +1107,7 @@ public final class KotlinEmitter extends IEmitter {
         println("            zzFState = " + dfa.entryState(action.getEntryState() + 1));
         println("            zzFPos = zzMarkedPos");
         println("            while (!zzFinL[zzFPos] || (zzAttrL[zzFState] and 1) != 1) {");
-        println("              zzInput = Character.codePointBefore(zzBufferL, zzFPos)");
+        println("              zzInput = Char.codePointBefore(zzBufferL, zzFPos)");
         println("              zzFPos -= charCount(zzInput)");
         println("              zzFState = zzTransL[ zzRowMapL[zzFState] + zzCMap(zzInput) ]");
         println("            }");
