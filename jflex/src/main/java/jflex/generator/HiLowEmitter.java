@@ -9,7 +9,7 @@ package jflex.generator;
  * HiLowEmitter
  *
  * @author Gerwin Klein
- * @version JFlex 1.10.15
+ * @version JFlex 1.10.16
  */
 public class HiLowEmitter extends PackEmitter {
 
