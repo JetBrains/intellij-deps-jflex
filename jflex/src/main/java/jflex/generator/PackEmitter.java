@@ -18,7 +18,7 @@ import jflex.logging.Out;
  * {@code p.emitUnpack();}
  *
  * @author Gerwin Klein
- * @version JFlex 1.10.15
+ * @version JFlex 1.10.17
  */
 public abstract class PackEmitter {
 

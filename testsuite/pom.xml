@@ -8,7 +8,7 @@
   <parent>
     <groupId>org.jetbrains.intellij.deps.jflex</groupId>
     <artifactId>jflex-parent</artifactId>
-    <version>1.10.15</version>
+    <version>1.10.17</version>
     <relativePath>../pom.xml</relativePath>
   </parent>
   <artifactId>jflex-testsuite-parent</artifactId>

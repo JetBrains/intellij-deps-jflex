@@ -8,7 +8,7 @@
   <groupId>org.jetbrains.intellij.deps.jflex</groupId>
   <artifactId>jflex-parent</artifactId>
   <name>JFlex parent and aggregator POM</name>
-  <version>1.10.15</version>
+  <version>1.10.17</version>
   <packaging>pom</packaging>
   <url>https://jflex-de.github.io/jflex-web/</url>
   <description>JFlex parent and aggregator POM</description>
