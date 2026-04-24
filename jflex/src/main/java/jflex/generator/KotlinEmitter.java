@@ -1085,34 +1085,34 @@ public final class KotlinEmitter extends IEmitter {
 
       if (action.lookAhead() == Action.Kind.GENERAL_LOOK) {
         println("            // general lookahead, find correct zzMarkedPos");
-        println("            { var zzFState = " + dfa.entryState(action.getEntryState()));
-        println("              var zzFPos = zzStartRead");
-        println("              if (zzFin == null) {");
-        println("                zzFin = Bitset(zzBufferL.length+1)");
-        println("              }");
-        println("              val zzFinL = zzFin !!");
-        println("              while (zzFState != -1 && zzFPos < zzMarkedPos) {");
-        println("                zzFinL[zzFPos] = ((zzAttrL[zzFState] and 1) == 1)");
-        println("                zzInput = zzBufferL.codePoint(zzFPos)");
-        println("                zzFPos += charCount(zzInput)");
-        println("                zzFState = zzTransL[ zzRowMapL[zzFState] + zzCMap(zzInput) ]");
-        println("              }");
-        println("              if (zzFState != -1) {");
-        println("                zzFinL[zzFPos++] = ((zzAttrL[zzFState] and 1) == 1)");
-        println("              }");
-        println("              while (zzFPos <= zzMarkedPos) {");
-        println("                zzFinL[zzFPos++] = false");
-        println("              }");
-        println();
-        println("              zzFState = " + dfa.entryState(action.getEntryState() + 1));
-        println("              zzFPos = zzMarkedPos");
-        println("              while (!zzFinL[zzFPos] || (zzAttrL[zzFState] and 1) != 1) {");
-        println("                zzInput = Character.codePointBefore(zzBufferL, zzFPos)");
-        println("                zzFPos -= charCount(zzInput)");
-        println("                zzFState = zzTransL[ zzRowMapL[zzFState] + zzCMap(zzInput) ]");
-        println("              }");
-        println("              zzMarkedPos = zzFPos");
+        println("            var zzFState = " + dfa.entryState(action.getEntryState()));
+        println("            var zzFPos = zzStartRead");
+        println("            if (zzFin == null) {");
+        println("              zzFin = Bitset(zzBufferL.length+1)");
         println("            }");
+        println("            val zzFinL = zzFin !!");
+        println("            while (zzFState != -1 && zzFPos < zzMarkedPos) {");
+        println("              zzFinL[zzFPos] = ((zzAttrL[zzFState] and 1) == 1)");
+        println("              zzInput = zzBufferL.codePoint(zzFPos)");
+        println("              zzFPos += charCount(zzInput)");
+        println("              zzFState = zzTransL[ zzRowMapL[zzFState] + zzCMap(zzInput) ]");
+        println("            }");
+        println("            if (zzFState != -1) {");
+        println("              zzFinL[zzFPos++] = ((zzAttrL[zzFState] and 1) == 1)");
+        println("            }");
+        println("            while (zzFPos <= zzMarkedPos) {");
+        println("              zzFinL[zzFPos++] = false");
+        println("            }");
+        println();
+        println("            zzFState = " + dfa.entryState(action.getEntryState() + 1));
+        println("            zzFPos = zzMarkedPos");
+        println("            while (!zzFinL[zzFPos] || (zzAttrL[zzFState] and 1) != 1) {");
+        println("              zzInput = Character.codePointBefore(zzBufferL, zzFPos)");
+        println("              zzFPos -= charCount(zzInput)");
+        println("              zzFState = zzTransL[ zzRowMapL[zzFState] + zzCMap(zzInput) ]");
+        println("            }");
+        println("            zzMarkedPos = zzFPos");
+        println();
       }
 
       if (scanner.debugOption()) {
