@@ -1107,7 +1107,7 @@ public final class KotlinEmitter extends IEmitter {
         println("          zzFState = " + dfa.entryState(action.getEntryState() + 1));
         println("          zzFPos = zzMarkedPos");
         println("          while (!zzFinL[zzFPos] || (zzAttrL[zzFState] and 1) != 1) {");
-        println("            zzInput = Char.codePointBefore(zzBufferL, zzFPos)");
+        println("            zzInput = zzBufferL.codePointBefore(zzFPos)");
         println("            zzFPos -= charCount(zzInput)");
         println("            zzFState = zzTransL[ zzRowMapL[zzFState] + zzCMap(zzInput) ]");
         println("          }");

@@ -365,25 +365,57 @@ companion object {
   }
 
   /**
+   * Converts a UTF-16 surrogate pair to a Unicode code point.
+   */
+  private fun toCodePoint(high: Char, low: Char): Int {
+    // UTF-16 high surrogate: 110110xxxxxxxxxx (10 bits)
+    // UTF-16 low surrogate:  110111yyyyyyyyyy (10 bits)
+    // Unicode code point:    00010000000000000000 + xxxxxxxxxxyyyyyyyyyy (21 bits)
+    return ((high.code - 0xD800) shl 10) + (low.code - 0xDC00) + 0x10000
+  }
+
+  /**
    * Implementation of the `codePointAt` method of `java.lang.Character` for CharSequences
    *
    * @param index the index of the character for which to retrieve the code point.
    * @return the Unicode code point at the specified index.
    * @throws IndexOutOfBoundsException if the index is outside the bounds of the character sequence.
    */
-  fun CharSequence.codePoint(index: Int): Int {
-      if (index < 0 || index >= length) throw IndexOutOfBoundsException("Index: $index, Size: $length")
-      val high = this[index]
-      if (high.isHighSurrogate() && index + 1 < length) {
-          val low = this[index + 1]
-          if (low.isLowSurrogate()) {
-              val codePoint: String = "$high$low"
-              return codePoint.codePointAt(0)
-          }
+  private fun CharSequence.codePoint(index: Int): Int {
+    if (index < 0 || index >= length) {
+      throw IndexOutOfBoundsException("Index: $index, Size: $length")
+    }
+    val high = this[index]
+    if (high.isHighSurrogate() && index + 1 < length) {
+      val low = this[index + 1]
+      if (low.isLowSurrogate()) {
+        return toCodePoint(high, low)
       }
-      return high.code
+    }
+    return high.code
   }
 
+  /**
+   * Implementation of the `codePointBefore` method of `java.lang.Character` for CharSequences.
+   * Returns the Unicode code point before the specified index.
+   *
+   * @param index the index following the code point to return.
+   * @return the Unicode code point before the given index.
+   * @throws IndexOutOfBoundsException if the index is outside the bounds of the character sequence.
+   */
+  private fun CharSequence.codePointBefore(index: Int): Int {
+      if (index < 1 || index > length) {
+        throw IndexOutOfBoundsException("Index: $index, Size: $length")
+      }
+      val low = this[index - 1]
+      if (low.isLowSurrogate() && index - 2 >= 0) {
+          val high = this[index - 2]
+          if (high.isHighSurrogate()) {
+              return toCodePoint(high, low)
+          }
+      }
+      return low.code
+  }
 
   /**
    * Reports an error that occured while scanning.
