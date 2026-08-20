@@ -1142,10 +1142,6 @@ public final class KotlinEmitter extends IEmitter {
     if (eofActions.numActions() > 0) {
       println("            when (zzLexicalState) {");
 
-      // pick a start value for break case labels.
-      // must be larger than any value of a lex state:
-      int last = dfa.numStates();
-
       for (String name : scanner.stateNames()) {
         int num = scanner.getStateNumber(name);
         Action action = eofActions.getAction(num);
@@ -1163,8 +1159,7 @@ public final class KotlinEmitter extends IEmitter {
             println(" }\")");
           }
           println("              " + action.content);
-          println("            }  // fall though");
-          println("            " + (++last) + " -> break");
+          println("            }");
         }
       }
 
