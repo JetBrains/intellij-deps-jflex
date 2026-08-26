@@ -46,6 +46,11 @@ Copyright: 2021, Google, LLC.
 License: BSD-3-Clause
 
 Files:
+  jflex/src/test/resources/jflex/*.golden
+Copyright: 2026, JetBrains s.r.o.
+License: BSD-3-Clause
+
+Files:
   docs/fig/jflex-black.ai
   docs/fig/jflex-black.pdf
   docs/fig/jflex-black.png
