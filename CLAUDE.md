@@ -57,12 +57,12 @@ Three command details that are easy to get wrong:
 
 Four golden tests differ only in the skeleton and the output mode:
 
-| Test | Skeleton | Mode | Golden |
-| --- | --- | --- | --- |
-| `KotlinEmitterTest` | the default, i.e. the **Java** `idea-flex.skeleton` | kotlin | `eof-kotlin-issue15.kt.golden` |
-| `KotlinSkeletonEmitterTest` | `src/main/jflex/kotlin_skeleton.nested` | kotlin | `eof-kotlin-issue15-kotlinskel.kt.golden` |
-| `IdeaSkeletonEmitterTest` | the default `idea-flex.skeleton` | java | `idea-lexer.java.golden` |
-| `IdeaKotlinSkeletonEmitterTest` | `src/main/resources/jflex/idea-flex-kotlin.skeleton` | kotlin | `idea-lexer.kt.golden` |
+| Test                            | Skeleton                                             | Mode   | Golden                                    |
+|---------------------------------|------------------------------------------------------|--------|-------------------------------------------|
+| `KotlinEmitterTest`             | the default, i.e. the **Java** `idea-flex.skeleton`  | kotlin | `eof-kotlin-issue15.kt.golden`            |
+| `KotlinSkeletonEmitterTest`     | `src/main/jflex/kotlin_skeleton.nested`              | kotlin | `eof-kotlin-issue15-kotlinskel.kt.golden` |
+| `IdeaSkeletonEmitterTest`       | the default `idea-flex.skeleton`                     | java   | `idea-lexer.java.golden`                  |
+| `IdeaKotlinSkeletonEmitterTest` | `src/main/resources/jflex/idea-flex-kotlin.skeleton` | kotlin | `idea-lexer.kt.golden`                    |
 
 All strip the two leading comment lines (JFlex version + spec path) so the goldens are neither
 version- nor machine-specific. To refresh after an intentional emitter change:
@@ -101,9 +101,9 @@ changes visible, and a compile gate for `kotlin_skeleton.nested` is still blocke
 **The IntelliJ skeletons are different: their output does compile, and it is gated.** The two `Idea*`
 goldens above are backed by two compile-and-run tests:
 
-| Test | Compiles with | Notes |
-| --- | --- | --- |
-| `IdeaSkeletonCompileTest` | `javax.tools.JavaCompiler` | skips via `assume()` if run on a JRE |
+| Test                            | Compiles with               | Notes                                          |
+|---------------------------------|-----------------------------|------------------------------------------------|
+| `IdeaSkeletonCompileTest`       | `javax.tools.JavaCompiler`  | skips via `assume()` if run on a JRE           |
 | `IdeaKotlinSkeletonCompileTest` | `K2JVMCompiler`, in-process | Maven-only; needs `kotlin-compiler-embeddable` |
 
 Both then load the scanner and lex `"start\nstart"`, asserting `bol[0,5] other[5,6] bol[6,11]`.
@@ -140,8 +140,8 @@ cd testsuite/testcases && ../../mvnw test -Dtestcases=dot
 **This suite does not currently run in this fork.** Two independent breakages, both confirmed:
 
 1. `JFlexTestsuiteMojo.jflexUberJarFilename` defaults to `jflex/target/jflex-full-${version}.jar`,
-   but the shade plugin was changed to *replace* the main artifact rather than produce a second one
-   (IDEA-332177), so the build yields `jflex-<version>.jar` + `original-jflex-<version>.jar` and
+   but the shade plugin was changed to *replace* the main artifact rather than produce a second one (IDEA-332177), so
+   the build yields `jflex-<version>.jar` + `original-jflex-<version>.jar` and
    never a `-full` jar. The parameter has no `property=`, so `-DjflexUberJarFilename=...` does not
    override it — it has to be set in the pom.
 2. Even given the right path, `JFlexTestsuiteMojo.java:53` hardcodes the **upstream** groupId
@@ -153,7 +153,8 @@ The stale `jflex-full` name also appears in `scripts/mk-release.sh:11`, `jflex/p
 `copy-jar-to-lib` execution (which silently copies nothing), and `jflex/examples/common/include.xml`
 (so the ant example builds are affected too).
 
-A case directory holds `<name>.test` (directives parsed by `testsuite/jflex-testsuite-maven-plugin/src/main/jflex/TestLoader.flex`
+A case directory holds `<name>.test` (directives parsed by
+`testsuite/jflex-testsuite-maven-plugin/src/main/jflex/TestLoader.flex`
 — `jflex:`, `jflex-fail:`, `jflex-diff:`, `javac-fail:`, encodings, `jdk:`), the `.flex` grammar, and
 golden `.output` files (scanner stdout) plus `<name>-flex.output` (generator stdout). Only 18 cases
 remain here, nearly all Unicode; the rest moved to Bazel under `javatests/de/jflex/testcase/`.
@@ -193,8 +194,8 @@ fixing three instances of that drift, all worth knowing about because the same t
 
 - **Error Prone is on for `java_library`, and Maven does not run it.** It rejected `Emitter` and
   `KotlinEmitter` for `WildcardImport`, `MissingOverride`, and (in `Emitter`) a `HidingField` on
-  `outputFileName` shadowing `IEmitter`'s. That failed `//jflex/src/main/java/jflex/generator`, so
-  *no* test in that package could build — `EmitterTest` and `PackEmitterTest` included. Code that
+  `outputFileName` shadowing `IEmitter`'s. That failed `//jflex/src/main/java/jflex/generator`, so *no* test in that
+  package could build — `EmitterTest` and `PackEmitterTest` included. Code that
   compiles under Maven can still break Bazel.
 - **`glob` does not descend into subpackages.** `//jflex:test_data` globs `src/test/resources/**`,
   but `jflex/src/test/resources/BUILD.bazel` makes that its own package, so the filegroup resolves
@@ -232,7 +233,8 @@ toolchain.
 `LexGenerator.generate()` (`jflex/src/main/java/jflex/generator/LexGenerator.java:54`) is the whole
 orchestration:
 
-`LexScan` → `LexParse` → **NFA** → `DfaFactory.createFromNfa` → `dfa.minimize()` → `Emitters.createFileEmitter` → `emitter.emit()`
+`LexScan` → `LexParse` → **NFA** → `DfaFactory.createFromNfa` → `dfa.minimize()` → `Emitters.createFileEmitter` →
+`emitter.emit()`
 
 The surprising part is step 2: the entire front end — macro expansion, char-class partitioning,
 semantic checks, and NFA construction — happens inside the CUP action for the `specification`
@@ -307,14 +309,14 @@ correct one for `KotlinEmitter` — verified by generating and compiling — so 
 the emitter's `skel.emitNext()` call sites (they carry `// <n>` comments) and the generated output
 instead.
 
-| File | Role |
-| --- | --- |
-| `jflex/src/main/resources/jflex/idea-flex.skeleton` | **the default** (`DEFAULT_LOC`), IntelliJ incremental-lexer API |
-| `jflex/src/main/resources/jflex/idea-flex-kotlin.skeleton` | the IntelliJ **Kotlin** skeleton; the `idea-flex.skeleton` API ported to Kotlin over a `CharSequence` |
-| `jflex/src/main/jflex/skeleton.nested` | source-tree file used for the bootstrap; adds `%include`/nested-stream support (`Deque<ZzFlexStreamInfo>`, `zzPushStream`/`zzPopStream`) |
-| `jflex/src/main/jflex/kotlin_skeleton.nested` | the Kotlin skeleton; KMP-oriented (`kotlinx.io.Source`, `CharSequence.codePoint`/`codePointBefore` extensions) |
-| `jflex/src/main/resources/jflex/skeleton.default` | upstream's default; currently unused |
-| `jflex/src/main/resources/jflex/skeleton_kotlin.default` | **broken and unreferenced** — 41 sections (two skeletons concatenated), so `readSkel` would reject it |
+| File                                                       | Role                                                                                                                                     |
+|------------------------------------------------------------|------------------------------------------------------------------------------------------------------------------------------------------|
+| `jflex/src/main/resources/jflex/idea-flex.skeleton`        | **the default** (`DEFAULT_LOC`), IntelliJ incremental-lexer API                                                                          |
+| `jflex/src/main/resources/jflex/idea-flex-kotlin.skeleton` | the IntelliJ **Kotlin** skeleton; the `idea-flex.skeleton` API ported to Kotlin over a `CharSequence`                                    |
+| `jflex/src/main/jflex/skeleton.nested`                     | source-tree file used for the bootstrap; adds `%include`/nested-stream support (`Deque<ZzFlexStreamInfo>`, `zzPushStream`/`zzPopStream`) |
+| `jflex/src/main/jflex/kotlin_skeleton.nested`              | the Kotlin skeleton; KMP-oriented (`kotlinx.io.Source`, `CharSequence.codePoint`/`codePointBefore` extensions)                           |
+| `jflex/src/main/resources/jflex/skeleton.default`          | upstream's default; currently unused                                                                                                     |
+| `jflex/src/main/resources/jflex/skeleton_kotlin.default`   | **broken and unreferenced** — 41 sections (two skeletons concatenated), so `readSkel` would reject it                                    |
 
 `Skeleton.line[]` is a **static** array loaded by a static initializer. Consequences worth knowing:
 `makePrivate()` (for `%apiprivate`) mutates it in place and leaks across generations in one JVM, and
