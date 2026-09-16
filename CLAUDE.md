@@ -184,12 +184,28 @@ BUILD files are hand-maintained and drift, and the drift is silent. A new Maven 
 target too, or it simply won't run there. Build files must be named `BUILD.bazel` (enforced by
 `scripts/test-bzl-format.sh`).
 
-`bazel test //jflex/src/...` runs 15 tests, including `KotlinEmitterTest` and the three Bazel-side
-`Idea*` tests. Note `//jflex/...` (the whole tree) still does **not** build: the
-`jflex/examples/cup-java-minijava` and `jflex/examples/simple` examples fail to compile, both
-because their specs expect upstream's `String yytext()` while the fork's skeleton returns
-`CharSequence`. That is pre-existing; scope to `//jflex/src/...` to get a green run. Getting the
-tests running at all required
+`bazel test //jflex/src/...` runs 16 tests, including `KotlinEmitterTest` and the four Bazel-side
+`Idea*`/`CupEofValueTest` tests. Note `//jflex/...` (the whole tree) still does **not** build, so
+scope to `//jflex/src/...` for a green run — and CI's `bazel test //jflex/...` step is red for the
+same reason. The examples are the problem, and they matter more than "example rot" suggests: Bazel
+generates them with `//jflex:jflex_bin`, i.e. the tree you are building, so they are the only place
+the fork's own generator has to produce compilable Java. **Maven does not do this** — each example's
+pom pins upstream `jflex-maven-plugin:1.9.0`, so `scripts/test-examples.sh` never exercises local
+changes and passes regardless.
+
+`//jflex/examples/cup-java-minijava` fails for three independent reasons, worth separating because
+only two are inherent:
+
+1. `yyclose()` is undefined — `%cup` sets `eofclose = true`, but `idea-flex.skeleton` has no
+   `yyclose()` (there is no reader to close; input arrives whole). Inherent to the fork's default.
+2. `yytext()` returns `CharSequence`, and the spec passes it to a `String` constructor. Inherent,
+   and the same cause as `//jflex/examples/simple/src/test:YylexTest`.
+3. The `%cup` EOF value was missing `new` — a genuine bug, now fixed; see below.
+
+(1) and (2) go away only by pointing the examples at upstream's `skeleton.default`, which has not
+been done: they are upstream artifacts that assume the upstream skeleton.
+
+Getting the tests running at all required
 fixing three instances of that drift, all worth knowing about because the same traps recur:
 
 - **Error Prone is on for `java_library`, and Maven does not run it.** It rejected `Emitter` and
@@ -384,8 +400,20 @@ If you change `LexScan.flex`, keep in mind:
   fields must be added there in the same change (several carry
   `@SuppressWarnings("unused") // Used in generated LexScan`).
 - New token kinds must be declared as `terminal`s in `LexParse.cup` — scanner and grammar are coupled.
+- **Strings `LexScan` builds are emitted verbatim by both emitters, so anything language-specific in
+  them must branch on `Options.output_mode`.** `%cup`'s default `eofVal` is the cautionary tale: it
+  constructs a `java_cup.runtime.Symbol`, and commit `d97b1798` dropped the `new` keyword to make
+  Kotlin output valid, which silently made *every* Java `%cup` spec emit `return
+  java_cup.runtime.Symbol(sym.EOF);` — a call to a method that does not exist. It is conditional on
+  the output mode now, and `CupEofValueTest` asserts both directions, since fixing one mode here
+  breaks the other. `Options` is already in scope in `LexScan.flex` for exactly this kind of check.
 - `jflex/src/test/resources/jflex/LexScan-test.flex` is a maintained near-copy that drifts unless
-  updated in lockstep.
+  updated in lockstep — but note it is **never generated or compiled**. Its only consumer is
+  `JFlexTaskTest`, which reads it to test `%class`/package name sniffing, so its action code is dead
+  text (it references `Options` without importing it). It cannot catch drift; it only records it. It
+  had kept the correct `new` while `LexScan.flex` lost it, which is what hid the bug above.
+- Changes to `LexScan.flex` only take effect after the bootstrap scanner is regenerated, and a stale
+  `target/generated-sources/` masks them. `./mvnw clean` when a `LexScan.flex` edit seems inert.
 - Stale `target/generated-sources/` can mask changes; `./mvnw clean` or `scripts/clean.sh` when in doubt.
 
 ### Core packages (`jflex/src/main/java/jflex/`)
