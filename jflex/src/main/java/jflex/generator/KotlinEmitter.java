@@ -843,7 +843,7 @@ public final class KotlinEmitter extends IEmitter {
         println("        // (if we have counted one line too much)");
         println("        var zzPeek: Boolean");
         println("        if (zzMarkedPosL < zzEndReadL)");
-        println("          zzPeek = zzBufferL.charAt(zzMarkedPosL) == '\\n'");
+        println("          zzPeek = zzBufferL[zzMarkedPosL] == '\\n'");
         println("        else if (zzAtEOF)");
         println("          zzPeek = false");
         println("        else {");
@@ -854,7 +854,7 @@ public final class KotlinEmitter extends IEmitter {
         println("          if (eof)");
         println("            zzPeek = false");
         println("          else");
-        println("            zzPeek = zzBufferL.charAt(zzMarkedPosL) == '\\n'");
+        println("            zzPeek = zzBufferL[zzMarkedPosL] == '\\n'");
         println("        }");
         println("        if (zzPeek) yyline--");
         println("      }");
@@ -866,13 +866,13 @@ public final class KotlinEmitter extends IEmitter {
       // if match was empty, last value of zzAtBOL can be used
       // zzStartRead is always >= 0
       println("      if (zzMarkedPosL > zzStartRead) {");
-      println("        when (zzBufferL.charAt(zzMarkedPosL-1)) {");
+      println("        when (zzBufferL[zzMarkedPosL-1]) {");
       println("         '\\n', '\\u000B', '\\u000C', '\\u0085', '\\u2028', '\\u2029' -> {");
       println("          zzAtBOL = true");
       println("          }");
       println("         '\\r' -> {");
       println("          if (zzMarkedPosL < zzEndReadL)");
-      println("            zzAtBOL = zzBufferL.charAt(zzMarkedPosL) != '\\n'");
+      println("            zzAtBOL = zzBufferL[zzMarkedPosL] != '\\n'");
       println("          else if (zzAtEOF)");
       println("            zzAtBOL = false");
       println("          else {");
@@ -883,7 +883,7 @@ public final class KotlinEmitter extends IEmitter {
       println("            if (eof) ");
       println("              zzAtBOL = false");
       println("            else ");
-      println("              zzAtBOL = zzBufferL.charAt(zzMarkedPosL) != '\\n'");
+      println("              zzAtBOL = zzBufferL[zzMarkedPosL] != '\\n'");
       println("          }");
       println("          }");
       println("        else -> {");
