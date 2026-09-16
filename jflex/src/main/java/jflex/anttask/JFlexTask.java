@@ -26,7 +26,7 @@ import org.apache.tools.ant.Task;
  * JFlex ant task.
  *
  * @author Rafal Mantiuk
- * @version JFlex 1.10.17
+ * @version JFlex 1.10.18
  */
 public class JFlexTask extends Task {
   private static final Pattern PACKAGE_PATTERN = Pattern.compile("package\\s+(\\S+)\\s*;");

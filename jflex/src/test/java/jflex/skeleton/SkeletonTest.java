@@ -18,7 +18,7 @@ import org.junit.Test;
  *
  * @author Gerwin Klein
  * @author Régis Décamps
- * @version JFlex 1.10.17
+ * @version JFlex 1.10.18
  */
 public class SkeletonTest {
 

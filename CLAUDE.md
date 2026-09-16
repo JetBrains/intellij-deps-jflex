@@ -36,7 +36,7 @@ Two things distinguish the fork from upstream, and nearly all local work touches
 ./mvnw -Pfastbuild install
 ```
 
-Output jar: `jflex/target/jflex-<version>.jar` (currently `1.10.17`, from the root pom `<version>`).
+Output jar: `jflex/target/jflex-<version>.jar` (currently `1.10.18`, from the root pom `<version>`).
 Compiles to Java 8 bytecode; requires Maven 3.5.2+ (the wrapper pins 3.5.4).
 
 Three command details that are easy to get wrong:
@@ -81,12 +81,12 @@ from `KotlinEmitter` — do not "fix" them.
 `KotlinSkeletonEmitterTest`'s golden **is** real Kotlin, but it still does not compile: Kotlin 2.0.21
 reports 18 errors, all pre-existing divergences unrelated to any one issue (`zzScanError` emitted as
 a local function, `break@zzForAction` where the label does not denote a loop, `readCodePointValue`
-and `charCount` unresolved, a mis-spliced `yypushback`/`zzScanError` pair). Verified 2026-09-16. To
-reproduce:
+and `charCount` unresolved, a mis-spliced `yypushback`/`zzScanError` pair). Verified 2026-09-16
+against 1.10.18. To reproduce:
 
 ```shell
 M2=$HOME/.m2/repository; K=2.0.21
-java -jar jflex/target/jflex-1.10.17.jar --output-mode kotlin \
+java -jar jflex/target/jflex-1.10.18.jar --output-mode kotlin \
   --skel jflex/src/main/jflex/kotlin_skeleton.nested -d /tmp/out \
   jflex/src/test/resources/jflex/eof-kotlin-issue15.flex
 java -cp "$M2/org/jetbrains/kotlin/kotlin-compiler-embeddable/$K/kotlin-compiler-embeddable-$K.jar:$M2/org/jetbrains/kotlin/kotlin-stdlib/$K/kotlin-stdlib-$K.jar:$M2/org/jetbrains/kotlin/kotlin-reflect/$K/kotlin-reflect-$K.jar:$M2/org/jetbrains/kotlin/kotlin-script-runtime/$K/kotlin-script-runtime-$K.jar:$M2/org/jetbrains/kotlin/kotlin-daemon-embeddable/$K/kotlin-daemon-embeddable-$K.jar:$M2/org/jetbrains/intellij/deps/trove4j/1.0.20221201/trove4j-1.0.20221201.jar:$M2/org/jetbrains/kotlinx/kotlinx-coroutines-core-jvm/1.8.1/kotlinx-coroutines-core-jvm-1.8.1.jar" \
@@ -361,18 +361,20 @@ Kotlin mode does **not** imply a Kotlin skeleton — the default stays `idea-fle
 Java — so to get real Kotlin you must pass both. For an IntelliJ lexer (the usual case), that is:
 
 ```shell
-java -jar jflex/target/jflex-1.10.17.jar --output-mode kotlin \
+java -jar jflex/target/jflex-1.10.18.jar --output-mode kotlin \
   --skel jflex/src/main/resources/jflex/idea-flex-kotlin.skeleton -d /tmp/out spec.flex
 ```
 
 `idea-flex-kotlin.skeleton` is a jar resource, so from a released jar there is no path to pass to
-`--skel`; extract it first, or do what the tests do and load it through the classloader with
+`--skel`; extract it first (`unzip -o -j jflex/target/jflex-1.10.18.jar
+jflex/idea-flex-kotlin.skeleton -d /tmp`), or do what the tests do and load it through the
+classloader with
 `Skeleton.readSkel(BufferedReader)`. Making `--output-mode kotlin` select it automatically was
 considered and deliberately not done — it would change generator defaults. The `kotlin_skeleton.nested`
 pairing is the other option, and its output does not compile:
 
 ```shell
-java -jar jflex/target/jflex-1.10.17.jar --output-mode kotlin \
+java -jar jflex/target/jflex-1.10.18.jar --output-mode kotlin \
   --skel jflex/src/main/jflex/kotlin_skeleton.nested -d /tmp/out spec.flex
 ```
 

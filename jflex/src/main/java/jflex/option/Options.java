@@ -18,7 +18,7 @@ import jflex.l10n.ErrorMessages;
  *
  * @see jflex.core.OptionUtils
  * @author Gerwin Klein
- * @version JFlex 1.10.17
+ * @version JFlex 1.10.18
  */
 public class Options {
 
