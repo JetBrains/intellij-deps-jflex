@@ -49,14 +49,20 @@ Three command details that are easy to get wrong:
   2.19, is also incompatible with JDK 21+.) CI never reformats — `!env.CI` disables the profile — and
   policies formatting separately in `gjf.yml` via `scripts/test-java-format.sh` (google-java-format
   1.15.0, `--dry-run --set-exit-if-changed`).
-- `jflex/src/test/java/jflex/generator/KotlinEmitterTest.java` is currently **not**
-  google-java-format-clean (it is indented with 4 spaces). Any build without `-Dfmt.skip=true`
-  rewrites it, and the `gjf.yml` job flags it as-is.
+- Note `scripts/test-java-format.sh` globs with `find`, so it also picks up generated sources under
+  any `target/` directory left in the tree. Run `./mvnw clean` first, or check individual files, or
+  it fails on `cup-maven-plugin/sample-project/target/generated-sources/` before reaching `jflex`.
 
 ### Golden-file tests
 
-`KotlinEmitterTest` compares the whole emitted scanner against a committed expectation, after
-stripping the two leading comment lines (JFlex version + absolute spec path) so the golden is neither
+Two golden tests cover the Kotlin emitter, and they differ only in the skeleton:
+
+| Test | Skeleton | Golden |
+| --- | --- | --- |
+| `KotlinEmitterTest` | the default, i.e. the **Java** `idea-flex.skeleton` | `eof-kotlin-issue15.kt.golden` |
+| `KotlinSkeletonEmitterTest` | `src/main/jflex/kotlin_skeleton.nested` | `eof-kotlin-issue15-kotlinskel.kt.golden` |
+
+Both strip the two leading comment lines (JFlex version + spec path) so the goldens are neither
 version- nor machine-specific. To refresh after an intentional emitter change:
 
 ```shell
@@ -65,9 +71,30 @@ cp jflex/target/test-output/KotlinEmitterTest/Issue15EofLexer.kt \
    jflex/src/test/resources/jflex/eof-kotlin-issue15.kt.golden
 ```
 
-Note this golden is **not compilable Kotlin**: the test runs with the default (Java) skeleton, so the
-file interleaves Java skeleton bodies (`public static final int YYEOF = -1;`) with Kotlin-emitted
-tables (`intArrayOf(...)`, `@JvmStatic`). It guards the emitted fragments only.
+`KotlinEmitterTest`'s golden is **not compilable Kotlin**: with the Java skeleton the file
+interleaves Java skeleton bodies (`public static final int YYEOF = -1;`, a `default:` label) with
+Kotlin-emitted tables (`intArrayOf(...)`, `@JvmStatic`). Those Java-isms come from the skeleton, not
+from `KotlinEmitter` — do not "fix" them.
+
+`KotlinSkeletonEmitterTest`'s golden **is** real Kotlin, but it still does not compile: Kotlin 2.0.21
+reports 18 errors, all pre-existing divergences unrelated to any one issue (`zzScanError` emitted as
+a local function, `break@zzForAction` where the label does not denote a loop, `readCodePointValue`
+and `charCount` unresolved, a mis-spliced `yypushback`/`zzScanError` pair). Verified 2026-09-16. To
+reproduce:
+
+```shell
+M2=$HOME/.m2/repository; K=2.0.21
+java -jar jflex/target/jflex-1.10.17.jar --output-mode kotlin \
+  --skel jflex/src/main/jflex/kotlin_skeleton.nested -d /tmp/out \
+  jflex/src/test/resources/jflex/eof-kotlin-issue15.flex
+java -cp "$M2/org/jetbrains/kotlin/kotlin-compiler-embeddable/$K/kotlin-compiler-embeddable-$K.jar:$M2/org/jetbrains/kotlin/kotlin-stdlib/$K/kotlin-stdlib-$K.jar:$M2/org/jetbrains/kotlin/kotlin-reflect/$K/kotlin-reflect-$K.jar:$M2/org/jetbrains/kotlin/kotlin-script-runtime/$K/kotlin-script-runtime-$K.jar:$M2/org/jetbrains/kotlin/kotlin-daemon-embeddable/$K/kotlin-daemon-embeddable-$K.jar:$M2/org/jetbrains/intellij/deps/trove4j/1.0.20221201/trove4j-1.0.20221201.jar:$M2/org/jetbrains/kotlinx/kotlinx-coroutines-core-jvm/1.8.1/kotlinx-coroutines-core-jvm-1.8.1.jar" \
+  org.jetbrains.kotlin.cli.jvm.K2JVMCompiler -no-stdlib -no-reflect \
+  -classpath "$M2/org/jetbrains/kotlin/kotlin-stdlib/$K/kotlin-stdlib-$K.jar:$M2/org/jetbrains/kotlinx/kotlinx-io-core-jvm/0.6.0/kotlinx-io-core-jvm-0.6.0.jar:$M2/org/jetbrains/kotlinx/kotlinx-io-bytestring-jvm/0.6.0/kotlinx-io-bytestring-jvm-0.6.0.jar" \
+  -d /tmp/out-classes /tmp/out/Issue15EofLexer.kt
+```
+
+So neither golden proves the output compiles; they are text freezes that make emitter changes
+visible. There is no compile gate in the build, and adding one is blocked on those 18 errors.
 
 ### Regression suite
 
@@ -121,10 +148,37 @@ Maven and Bazel are both live, and CI runs both. They cover **different** trees:
   references them — and hold the Unicode data generators, the `de.jflex.testing.*` harnesses, and
   ~93 regression tests.
 
-BUILD files are hand-maintained and drift: `jflex/src/test/java/jflex/generator/BUILD.bazel` lists
-only `EmitterTest` and `PackEmitterTest`, so `bazel test //jflex/...` does not run `KotlinEmitterTest`.
-A new Maven test needs a Bazel target too, or it silently won't run there. Build files must be named
-`BUILD.bazel` (enforced by `scripts/test-bzl-format.sh`).
+BUILD files are hand-maintained and drift, and the drift is silent. A new Maven test needs a Bazel
+target too, or it simply won't run there. Build files must be named `BUILD.bazel` (enforced by
+`scripts/test-bzl-format.sh`).
+
+`bazel test //jflex/...` now runs 10 tests, including `KotlinEmitterTest`. Getting there required
+fixing three instances of that drift, all worth knowing about because the same traps recur:
+
+- **Error Prone is on for `java_library`, and Maven does not run it.** It rejected `Emitter` and
+  `KotlinEmitter` for `WildcardImport`, `MissingOverride`, and (in `Emitter`) a `HidingField` on
+  `outputFileName` shadowing `IEmitter`'s. That failed `//jflex/src/main/java/jflex/generator`, so
+  *no* test in that package could build — `EmitterTest` and `PackEmitterTest` included. Code that
+  compiles under Maven can still break Bazel.
+- **`glob` does not descend into subpackages.** `//jflex:test_data` globs `src/test/resources/**`,
+  but `jflex/src/test/resources/BUILD.bazel` makes that its own package, so the filegroup resolves
+  to **nothing** — silently, with no error. Depend on `//jflex/src/test/resources:resources`
+  instead. `//jflex:test_data` is still there and still empty.
+- **Explicit `srcs` lists rot.** `jflex/src/main/java/jflex/option/BUILD.bazel` listed only
+  `Options.java` and omitted the fork's `OutputMode.java`, which broke every Bazel build of the
+  tree. It is a `glob` now.
+
+A test that reads files needs two accommodations Maven does not: paths resolve from the runfiles
+root (where module files sit under `jflex/`) rather than the module directory, and the runfiles tree
+is read-only, so output goes to `$TEST_TMPDIR`. `KotlinEmitterTest.moduleFile` and
+`KotlinEmitterTest.outputDir` handle both and are reused by `KotlinSkeletonEmitterTest`.
+
+Still red under Bazel, pre-existing and unrelated: `//jflex/examples/simple/src/test:YylexTest`,
+because the example's spec expects upstream's `String yytext()` while the fork's default skeleton
+returns `CharSequence`. `KotlinSkeletonEmitterTest` is deliberately Maven-only — it reads
+`src/main/jflex/kotlin_skeleton.nested`, which no target exposes as data (unlike
+`src/main/resources/**`, packaged by `//jflex:resources`); wiring it up needs a filegroup for
+`src/main/jflex/` first.
 
 ### Generation pipeline
 
@@ -164,8 +218,18 @@ with no common superclass. So:
 
 - **A fix in `Emitter` almost always needs mirroring in `KotlinEmitter`, and vice versa.** The recent
   history is largely Kotlin-only fixes for divergences introduced by the copy (`#15` bare `break` in
-  `emitEOFVal`, `Action.Kind.GENERAL_LOOK` handling, stray `;`, `offsetByCodePoints`).
-- Any `KotlinEmitter` change means refreshing the golden above.
+  `emitEOFVal`, the `%bol` fall-through below, `Action.Kind.GENERAL_LOOK` handling, stray `;`,
+  `offsetByCodePoints`).
+- **Java `switch` fall-through is the recurring trap in this fork.** `Emitter` leans on it in three
+  places; Kotlin `when` has no fall-through, so each one needs a comma-separated branch instead. Two
+  of the three were mistranslated. `#15` was one (a synthetic `case <n>: break;` became a bare
+  `<n> -> break`). The `%bol` block was the other: six newline characters that share one `switch`
+  arm in `Emitter` became six separate `-> {}` arms, five of them empty, so `zzAtBOL` was only ever
+  set for `' '` and every `^` anchor was broken in Kotlin mode. The line-counting block was
+  translated correctly and shows the right idiom. When touching either emitter, check whether a
+  `// fall through` comment is doing real work — in Kotlin the comment survives the copy and the
+  behaviour does not.
+- Any `KotlinEmitter` change means refreshing both goldens above.
 - `KotlinEmitter.java:31` still claims `@version JFlex 1.10.0`; version tags are hand-maintained
   (`scripts/prepare-release.pl` only strips `-SNAPSHOT`).
 
@@ -265,12 +329,15 @@ Verified, so you don't spend time on it:
 
 - `jflex/src/main/java/jflex/core/KotlinAbstractLexScan.java` (481 lines) — a fork of
   `AbstractLexScan` differing only in `lexPushStream(Path)` vs `(File)` and `kotlinx.io` imports.
-  Referenced nowhere; presumably staged for a future self-hosted Kotlin `LexScan`.
+  Referenced nowhere; presumably staged for a future self-hosted Kotlin `LexScan`. It is excluded
+  from `jflex/src/main/java/jflex/core/BUILD.bazel`'s glob: its `kotlinx.io` imports have no Bazel
+  dependency, so globbing it in breaks the build.
 - `jflex/src/main/java/jflex/dfa/StatePairList.java` — unreferenced.
 - `jflex/src/main/java/jflex/dfa/DeprecatedDfa.java` — used only by `DfaTest`.
 - `IEmitter.normalize` / `IEmitter.sourceFileString` — shadowed by identical copies in both `Emitter`
-  and `KotlinEmitter`; callers use `Emitter.normalize`. `Emitter` also re-declares `outputFileName`,
-  shadowing the base field.
+  and `KotlinEmitter`; callers use `Emitter.normalize`. (`Emitter` used to re-declare
+  `outputFileName` as well, shadowing the base field; removed, since Error Prone's `HidingField`
+  rejected it under Bazel.)
 - `Emitters`' three `switch (Options.output_mode)` blocks have no `default` and fall through to
   `return null`, so a third `OutputMode` would yield an NPE rather than a compile error.
 - `--uniprops <ver>` is broken: it reflectively looks up `jflex.unicode.data.Unicode_X_Y`, but the
