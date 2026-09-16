@@ -430,6 +430,26 @@ Peripheral: `base/`, `chars/`, `io/`, `performance/`, `exceptions/`, `scanner/`,
 
 Note `OptionUtils` lives in `core/`, not `option/`, because it depends on `Skeleton`.
 
+## Releasing
+
+The release process is **not** documented in this repo. It lives in the IntelliJ monorepo, at
+`docs/IntelliJ-Platform/4_man/Lang/Releasing-JFlex-Versions.md`. In outline:
+
+- `perl scripts/post-release.pl --release x.y.z` cuts the release: it checks for a clean checkout,
+  creates the `intellij/x.y.z` branch, rewrites the JFlex version in every POM, and updates the
+  version comments and `@version` tags. Its XSLT deliberately **skips the bootstrap version** in
+  `jflex/pom.xml`, so the `jflex-maven-plugin` pin stays put — see Bootstrapping above. Publishing
+  then happens on internal CI, followed by a GitHub tag and release.
+- `scripts/prepare-release.pl` is *not* part of this path; it only converts `-SNAPSHOT` versions,
+  which this fork does not use. (The monorepo doc calls it `pre-release.pl`, which is the wrong name.)
+- To test an unpublished jar, repoint the monorepo's `community/tools/lexer/build.xml` — comment out
+  the `<get>` that downloads the published jar and aim the `<java jar=...>` at
+  `jflex/target/jflex-<version>.jar` — then regenerate lexers with the `flex`/`kflex` Ant targets and
+  run the downstream IntelliJ tests. Snapshot versions cannot be published, so this is the only way
+  to try a build without burning a version number.
+- **The testsuite does not run during a release build**, nor from any Maven goal — consistent with
+  the Regression suite section above. Downstream IntelliJ testing is the real gate.
+
 ## Known dead or broken code
 
 Verified, so you don't spend time on it:
