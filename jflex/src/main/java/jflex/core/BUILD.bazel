@@ -10,6 +10,9 @@ java_library(
     name = "core",
     srcs = glob(
         ["*.java"],
+        # Unreferenced fork leftover, staged for a future self-hosted Kotlin LexScan. It imports
+        # kotlinx.io, which no Bazel dependency provides, so globbing it in breaks the build.
+        exclude = ["KotlinAbstractLexScan.java"],
     ) + [
         ":gen_parser",
         ":gen_scanner",

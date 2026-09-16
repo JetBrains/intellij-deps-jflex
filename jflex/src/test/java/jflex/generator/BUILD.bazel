@@ -13,6 +13,27 @@ java_test(
 )
 
 java_test(
+    name = "KotlinEmitterTest",
+    size = "small",
+    srcs = ["KotlinEmitterTest.java"],
+    # Not //jflex:test_data -- that filegroup globs src/test/resources/**, which is its own
+    # package, and Bazel globs do not descend into subpackages, so it resolves to nothing.
+    data = ["//jflex/src/test/resources"],
+    deps = [
+        "//jflex:resources",
+        "//jflex/src/main/java/jflex/core",
+        "//jflex/src/main/java/jflex/generator",
+        "//jflex/src/main/java/jflex/option",
+        "//third_party/com/google/truth",
+    ],
+)
+
+# KotlinSkeletonEmitterTest is deliberately Maven-only: it reads
+# jflex/src/main/jflex/kotlin_skeleton.nested, a source-tree file that no Bazel target exposes as
+# data (unlike src/main/resources/**, which //jflex:resources packages). Wiring it up means adding
+# a filegroup for src/main/jflex/ first.
+
+java_test(
     name = "PackEmitterTest",
     size = "small",
     srcs = ["PackEmitterTest.java"],

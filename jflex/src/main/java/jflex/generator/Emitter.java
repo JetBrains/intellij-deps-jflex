@@ -7,10 +7,18 @@ package jflex.generator;
 
 import java.io.File;
 import java.io.PrintWriter;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
 import jflex.base.Build;
 import jflex.base.Pair;
-import jflex.core.*;
+import jflex.core.AbstractLexScan;
+import jflex.core.Action;
+import jflex.core.EOFActions;
+import jflex.core.LexParse;
+import jflex.core.LexScan;
 import jflex.core.unicode.CMapBlock;
 import jflex.core.unicode.CharClasses;
 import jflex.dfa.DFA;
@@ -36,7 +44,6 @@ public final class Emitter extends IEmitter {
   private static final int NOLOOK = 8;
 
   private final File inputFile;
-  final String outputFileName;
 
   private final PrintWriter out;
   private final Skeleton skel;
@@ -1353,6 +1360,7 @@ public final class Emitter extends IEmitter {
   }
 
   /** Main Emitter method. */
+  @Override
   public void emit() {
     String functionName = (scanner.functionName() != null) ? scanner.functionName() : "yylex";
 

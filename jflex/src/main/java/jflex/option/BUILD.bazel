@@ -3,7 +3,9 @@
 
 java_library(
     name = "option",
-    srcs = ["Options.java"],
+    # glob, not an explicit list: OutputMode.java was added for Kotlin output mode and omitting it
+    # here broke the Bazel build of the whole jflex tree (Options.output_mode could not resolve).
+    srcs = glob(["*.java"]),
     visibility = ["//jflex:visibility"],
     deps = [
         "//jflex/src/main/java/jflex/l10n",
