@@ -277,7 +277,11 @@ JavaCode = ({JavaRest}|{StringLiteral}|{CharLiteral}|{JavaComment})+
                                 if (tokenType == null)
                                   tokenType = "java_cup.runtime.Symbol";
                                 if (eofVal == null)
-                                  eofVal = "return new java_cup.runtime.Symbol("+cupSymbol+".EOF);";
+                                  // Kept in lockstep with src/main/jflex/LexScan.flex. A Kotlin
+                                  // constructor call has no `new`, a Java one needs it.
+                                  eofVal = "return "
+                                      + (Options.output_mode == OutputMode.KOTLIN ? "" : "new ")
+                                      + "java_cup.runtime.Symbol("+cupSymbol+".EOF);";
                                 if (!Options.jlex) eofclose = true;
                               }
   "%cupsym"{WSP}+{QualIdent} {WSP}*  { cupSymbol = yytext().substring(8).trim();

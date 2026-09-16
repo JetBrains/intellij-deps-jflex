@@ -106,6 +106,25 @@ java_test(
 # a filegroup for src/main/jflex/ first.
 
 java_test(
+    name = "CupEofValueTest",
+    size = "small",
+    # KotlinEmitterTest.java carries the shared moduleFile/outputDir helpers; see the note above.
+    srcs = [
+        "CupEofValueTest.java",
+        "KotlinEmitterTest.java",
+    ],
+    data = ["//jflex/src/test/resources"],
+    deps = [
+        "//jflex:resources",
+        "//jflex/src/main/java/jflex/core",
+        "//jflex/src/main/java/jflex/generator",
+        "//jflex/src/main/java/jflex/option",
+        "//jflex/src/main/java/jflex/skeleton",
+        "//third_party/com/google/truth",
+    ],
+)
+
+java_test(
     name = "PackEmitterTest",
     size = "small",
     srcs = ["PackEmitterTest.java"],

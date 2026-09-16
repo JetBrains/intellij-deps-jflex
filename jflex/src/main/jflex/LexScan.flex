@@ -13,6 +13,7 @@ import jflex.core.unicode.IntCharSet;
 import jflex.l10n.ErrorMessages;
 import jflex.logging.Out;
 import jflex.option.Options;
+import jflex.option.OutputMode;
 import jflex.performance.Timer;
 import jflex.scanner.ScannerException;
 import jflex.skeleton.Skeleton;
@@ -236,7 +237,11 @@ DottedVersion =  [1-9][0-9]*(\.[0-9]+){0,2}
                                 if (tokenType == null)
                                   tokenType = "java_cup.runtime.Symbol";
                                 if (eofVal == null)
-                                  eofVal = "return java_cup.runtime.Symbol("+cupSymbol+".EOF);";
+                                  // A Kotlin constructor call has no `new`, a Java one needs it,
+                                  // and this eofVal string is emitted verbatim by both emitters.
+                                  eofVal = "return "
+                                      + (Options.output_mode == OutputMode.KOTLIN ? "" : "new ")
+                                      + "java_cup.runtime.Symbol("+cupSymbol+".EOF);";
                                 if (!Options.jlex) eofclose = true;
                               }
   "%cupsym"{WSP}+{QualIdent} {WSP}*  { cupSymbol = yytext().substring(8).trim();
