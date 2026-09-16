@@ -121,6 +121,15 @@
             <version>${kotlin.version}</version>
             <scope>test</scope>
         </dependency>
+        <!-- Compiles the scanner emitted from idea-flex-kotlin.skeleton, so a KotlinEmitter
+             change that breaks Kotlin syntax fails the build instead of only moving a golden.
+             See IdeaKotlinSkeletonCompileTest. -->
+        <dependency>
+            <groupId>org.jetbrains.kotlin</groupId>
+            <artifactId>kotlin-compiler-embeddable</artifactId>
+            <version>${kotlin.version}</version>
+            <scope>test</scope>
+        </dependency>
         <dependency>
             <groupId>org.jetbrains.kotlinx</groupId>
             <artifactId>kotlinx-io-core-jvm</artifactId>

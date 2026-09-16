@@ -5,8 +5,13 @@
 package jflex.generator;
 
 import static com.google.common.truth.Truth.assertThat;
+import static com.google.common.truth.Truth.assertWithMessage;
+import static java.nio.charset.StandardCharsets.UTF_8;
 
+import java.io.BufferedReader;
 import java.io.IOException;
+import java.io.InputStream;
+import java.io.InputStreamReader;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -14,6 +19,7 @@ import java.nio.file.Paths;
 import jflex.core.OptionUtils;
 import jflex.option.Options;
 import jflex.option.OutputMode;
+import jflex.skeleton.Skeleton;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
@@ -65,6 +71,27 @@ public class KotlinEmitterTest {
     return testTmpDir != null
         ? Paths.get(testTmpDir).resolve(name)
         : Paths.get("target/test-output").resolve(name);
+  }
+
+  /**
+   * Loads one of the skeletons packaged under {@code src/main/resources/jflex/} and installs it as
+   * the skeleton for the next generation.
+   *
+   * <p>Goes through {@link Skeleton#readSkel(BufferedReader)} rather than {@link
+   * Skeleton#readSkelFile(java.io.File)} on purpose: the reader overload resolves the skeleton
+   * through the classloader, so it works identically under Maven and Bazel and needs no {@code
+   * data} dependency. That is why the IntelliJ-skeleton tests run under Bazel while {@link
+   * KotlinSkeletonEmitterTest} cannot -- the skeleton it needs is a plain source-tree file that no
+   * Bazel target exposes.
+   */
+  static void readSkeletonResource(String resource) throws IOException {
+    InputStream in = Skeleton.class.getClassLoader().getResourceAsStream(resource);
+    assertWithMessage("skeleton resource %s is not on the classpath", resource)
+        .that(in)
+        .isNotNull();
+    try (BufferedReader reader = new BufferedReader(new InputStreamReader(in, UTF_8))) {
+      Skeleton.readSkel(reader);
+    }
   }
 
   @Before

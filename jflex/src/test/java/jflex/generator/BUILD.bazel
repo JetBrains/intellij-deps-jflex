@@ -24,9 +24,81 @@ java_test(
         "//jflex/src/main/java/jflex/core",
         "//jflex/src/main/java/jflex/generator",
         "//jflex/src/main/java/jflex/option",
+        "//jflex/src/main/java/jflex/skeleton",
         "//third_party/com/google/truth",
     ],
 )
+
+# The IntelliJ skeletons. Both of these run here, unlike KotlinSkeletonEmitterTest below, because
+# idea-flex.skeleton and idea-flex-kotlin.skeleton live under src/main/resources/ and so are
+# packaged by //jflex:resources and reachable through the classloader.
+java_test(
+    name = "IdeaSkeletonEmitterTest",
+    size = "small",
+    # KotlinEmitterTest.java carries the shared moduleFile/outputDir/readSkeletonResource
+    # helpers these tests call. Maven compiles all test sources together; Bazel needs it
+    # listed. Only IdeaSkeletonEmitterTest runs -- java_test infers test_class from the target name.
+    srcs = [
+        "IdeaSkeletonEmitterTest.java",
+        "KotlinEmitterTest.java",
+    ],
+    data = ["//jflex/src/test/resources"],
+    deps = [
+        "//jflex:resources",
+        "//jflex/src/main/java/jflex/core",
+        "//jflex/src/main/java/jflex/generator",
+        "//jflex/src/main/java/jflex/option",
+        "//jflex/src/main/java/jflex/skeleton",
+        "//third_party/com/google/truth",
+    ],
+)
+
+java_test(
+    name = "IdeaKotlinSkeletonEmitterTest",
+    size = "small",
+    # KotlinEmitterTest.java carries the shared moduleFile/outputDir/readSkeletonResource
+    # helpers these tests call. Maven compiles all test sources together; Bazel needs it
+    # listed. Only IdeaKotlinSkeletonEmitterTest runs -- java_test infers test_class from the target name.
+    srcs = [
+        "IdeaKotlinSkeletonEmitterTest.java",
+        "KotlinEmitterTest.java",
+    ],
+    data = ["//jflex/src/test/resources"],
+    deps = [
+        "//jflex:resources",
+        "//jflex/src/main/java/jflex/core",
+        "//jflex/src/main/java/jflex/generator",
+        "//jflex/src/main/java/jflex/option",
+        "//jflex/src/main/java/jflex/skeleton",
+        "//third_party/com/google/truth",
+    ],
+)
+
+java_test(
+    name = "IdeaSkeletonCompileTest",
+    size = "small",
+    # KotlinEmitterTest.java carries the shared moduleFile/outputDir/readSkeletonResource
+    # helpers these tests call. Maven compiles all test sources together; Bazel needs it
+    # listed. Only IdeaSkeletonCompileTest runs -- java_test infers test_class from the target name.
+    srcs = [
+        "IdeaSkeletonCompileTest.java",
+        "KotlinEmitterTest.java",
+    ],
+    data = ["//jflex/src/test/resources"],
+    deps = [
+        "//jflex:resources",
+        "//jflex/src/main/java/jflex/core",
+        "//jflex/src/main/java/jflex/generator",
+        "//jflex/src/main/java/jflex/option",
+        "//jflex/src/main/java/jflex/skeleton",
+        "//jflex/src/test/java/jflex/testing/lexer",
+        "//third_party/com/google/truth",
+    ],
+)
+
+# IdeaKotlinSkeletonCompileTest is Maven-only: it needs kotlin-compiler-embeddable, which no Bazel
+# target provides (there are zero .kt sources in the repo, so no Kotlin toolchain is wired up).
+# IdeaKotlinSkeletonEmitterTest carries the Bazel-side coverage of that skeleton.
 
 # KotlinSkeletonEmitterTest is deliberately Maven-only: it reads
 # jflex/src/main/jflex/kotlin_skeleton.nested, a source-tree file that no Bazel target exposes as

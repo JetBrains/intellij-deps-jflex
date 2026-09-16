@@ -1,0 +1,12 @@
+# Copyright 2026
+# SPDX-License-Identifier: BSD-3-Clause
+
+package(default_visibility = ["//jflex:visibility"])
+
+# Its own package because the sibling //jflex/src/test/java/jflex/testing:testing globs only
+# "*.java" and Bazel globs do not descend into subdirectories.
+java_library(
+    name = "lexer",
+    testonly = True,
+    srcs = glob(["*.java"]),
+)
