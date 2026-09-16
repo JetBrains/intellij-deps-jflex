@@ -7,10 +7,18 @@ package jflex.generator;
 
 import java.io.File;
 import java.io.PrintWriter;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
 import jflex.base.Build;
 import jflex.base.Pair;
-import jflex.core.*;
+import jflex.core.AbstractLexScan;
+import jflex.core.Action;
+import jflex.core.EOFActions;
+import jflex.core.LexParse;
+import jflex.core.LexScan;
 import jflex.core.unicode.CMapBlock;
 import jflex.core.unicode.CharClasses;
 import jflex.dfa.DFA;
@@ -859,12 +867,7 @@ public final class KotlinEmitter extends IEmitter {
       // zzStartRead is always >= 0
       println("      if (zzMarkedPosL > zzStartRead) {");
       println("        when (zzBufferL.charAt(zzMarkedPosL-1)) {");
-      println("         '\\n' -> {}");
-      println("         '\\u000B' -> {}  // fall through");
-      println("         '\\u000C' -> {}  // fall through");
-      println("         '\\u0085' -> {}  // fall through");
-      println("         '\\u2028' -> {}  // fall through");
-      println("         '\\u2029' -> {  // fall through");
+      println("         '\\n', '\\u000B', '\\u000C', '\\u0085', '\\u2028', '\\u2029' -> {");
       println("          zzAtBOL = true");
       println("          }");
       println("         '\\r' -> {");
@@ -1324,6 +1327,7 @@ public final class KotlinEmitter extends IEmitter {
   }
 
   /** Main Emitter method. */
+  @Override
   public void emit() {
     String functionName = (scanner.functionName() != null) ? scanner.functionName() : "yylex";
 
