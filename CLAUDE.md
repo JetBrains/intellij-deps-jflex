@@ -55,14 +55,16 @@ Three command details that are easy to get wrong:
 
 ### Golden-file tests
 
-Two golden tests cover the Kotlin emitter, and they differ only in the skeleton:
+Four golden tests differ only in the skeleton and the output mode:
 
-| Test | Skeleton | Golden |
-| --- | --- | --- |
-| `KotlinEmitterTest` | the default, i.e. the **Java** `idea-flex.skeleton` | `eof-kotlin-issue15.kt.golden` |
-| `KotlinSkeletonEmitterTest` | `src/main/jflex/kotlin_skeleton.nested` | `eof-kotlin-issue15-kotlinskel.kt.golden` |
+| Test | Skeleton | Mode | Golden |
+| --- | --- | --- | --- |
+| `KotlinEmitterTest` | the default, i.e. the **Java** `idea-flex.skeleton` | kotlin | `eof-kotlin-issue15.kt.golden` |
+| `KotlinSkeletonEmitterTest` | `src/main/jflex/kotlin_skeleton.nested` | kotlin | `eof-kotlin-issue15-kotlinskel.kt.golden` |
+| `IdeaSkeletonEmitterTest` | the default `idea-flex.skeleton` | java | `idea-lexer.java.golden` |
+| `IdeaKotlinSkeletonEmitterTest` | `src/main/resources/jflex/idea-flex-kotlin.skeleton` | kotlin | `idea-lexer.kt.golden` |
 
-Both strip the two leading comment lines (JFlex version + spec path) so the goldens are neither
+All strip the two leading comment lines (JFlex version + spec path) so the goldens are neither
 version- nor machine-specific. To refresh after an intentional emitter change:
 
 ```shell
@@ -93,8 +95,37 @@ java -cp "$M2/org/jetbrains/kotlin/kotlin-compiler-embeddable/$K/kotlin-compiler
   -d /tmp/out-classes /tmp/out/Issue15EofLexer.kt
 ```
 
-So neither golden proves the output compiles; they are text freezes that make emitter changes
-visible. There is no compile gate in the build, and adding one is blocked on those 18 errors.
+Neither of those two goldens proves the output compiles; they are text freezes that make emitter
+changes visible, and a compile gate for `kotlin_skeleton.nested` is still blocked on those 18 errors.
+
+**The IntelliJ skeletons are different: their output does compile, and it is gated.** The two `Idea*`
+goldens above are backed by two compile-and-run tests:
+
+| Test | Compiles with | Notes |
+| --- | --- | --- |
+| `IdeaSkeletonCompileTest` | `javax.tools.JavaCompiler` | skips via `assume()` if run on a JRE |
+| `IdeaKotlinSkeletonCompileTest` | `K2JVMCompiler`, in-process | Maven-only; needs `kotlin-compiler-embeddable` |
+
+Both then load the scanner and lex `"start\nstart"`, asserting `bol[0,5] other[5,6] bol[6,11]`.
+Lexing `^"start"` at offset 0 *and* after a newline is the point: it is what distinguishes a working
+`zzAtBOL` from a broken one, which no golden can do on its own (refreshing a golden just copies
+whatever was emitted). This caught a real bug — see the `charAt` note under the emitter hierarchy.
+
+`kotlin-compiler-embeddable` is a test-scope dependency of the `jflex` module for this, and the test
+passes surefire's own classpath (`java.class.path`) through to `-classpath`, so `kotlin-stdlib` and
+the `FlexLexer` the scanner implements both resolve without a hand-assembled classpath. Assembling
+one by hand is a trap: it needs `kotlinx-coroutines-core-jvm` and `annotations` on the *compiler's*
+classpath or it dies with `NoClassDefFoundError` far from the real problem.
+
+The shared fixture is `src/test/resources/jflex/idea-lexer.flex`, shaped like a real IntelliJ spec
+because that is what makes it compilable: the skeletons declare `reset`/`getTokenStart`/
+`getTokenEnd`/`yystate`/`yybegin` as **overrides**, so the scanner needs a supertype that declares
+them. `jflex/src/test/java/jflex/testing/lexer/FlexLexer.java` is a local stand-in for IntelliJ's
+`com.intellij.lexer.FlexLexer` (IntelliJ is not a dependency here). Two details it has to get right:
+`advance()` is declared `throws IOException` because `Emitter` emits that (`KotlinEmitter` does not —
+Kotlin has no checked exceptions), and the generated constructors differ between the skeletons — the
+Java one emits `Lexer(java.io.Reader)` and IntelliJ passes it a null reader, the Kotlin one emits no
+constructor at all. `LexerDriver` handles both.
 
 ### Regression suite
 
@@ -152,7 +183,12 @@ BUILD files are hand-maintained and drift, and the drift is silent. A new Maven 
 target too, or it simply won't run there. Build files must be named `BUILD.bazel` (enforced by
 `scripts/test-bzl-format.sh`).
 
-`bazel test //jflex/...` now runs 10 tests, including `KotlinEmitterTest`. Getting there required
+`bazel test //jflex/src/...` runs 15 tests, including `KotlinEmitterTest` and the three Bazel-side
+`Idea*` tests. Note `//jflex/...` (the whole tree) still does **not** build: the
+`jflex/examples/cup-java-minijava` and `jflex/examples/simple` examples fail to compile, both
+because their specs expect upstream's `String yytext()` while the fork's skeleton returns
+`CharSequence`. That is pre-existing; scope to `//jflex/src/...` to get a green run. Getting the
+tests running at all required
 fixing three instances of that drift, all worth knowing about because the same traps recur:
 
 - **Error Prone is on for `java_library`, and Maven does not run it.** It rejected `Emitter` and
@@ -171,7 +207,11 @@ fixing three instances of that drift, all worth knowing about because the same t
 A test that reads files needs two accommodations Maven does not: paths resolve from the runfiles
 root (where module files sit under `jflex/`) rather than the module directory, and the runfiles tree
 is read-only, so output goes to `$TEST_TMPDIR`. `KotlinEmitterTest.moduleFile` and
-`KotlinEmitterTest.outputDir` handle both and are reused by `KotlinSkeletonEmitterTest`.
+`KotlinEmitterTest.outputDir` handle both and are reused by every other emitter test. Two
+consequences of Bazel's explicit `srcs`: those helpers live in a test class, so any target using them
+must list `KotlinEmitterTest.java` in `srcs` alongside its own source (only the target's own class
+runs — `java_test` infers `test_class` from the target name), and `jflex/testing/lexer/` needs its own
+`BUILD.bazel` because the sibling `//jflex/src/test/java/jflex/testing` globs just `*.java`.
 
 Still red under Bazel, pre-existing and unrelated: `//jflex/examples/simple/src/test:YylexTest`,
 because the example's spec expects upstream's `String yytext()` while the fork's default skeleton
@@ -179,6 +219,13 @@ returns `CharSequence`. `KotlinSkeletonEmitterTest` is deliberately Maven-only �
 `src/main/jflex/kotlin_skeleton.nested`, which no target exposes as data (unlike
 `src/main/resources/**`, packaged by `//jflex:resources`); wiring it up needs a filegroup for
 `src/main/jflex/` first.
+
+The `Idea*` tests do run under Bazel, and the reason is worth copying: their skeletons live under
+`src/main/resources/`, so they load through the classloader via `Skeleton.readSkel(BufferedReader)`
+(see `KotlinEmitterTest.readSkeletonResource`) and need no `data` dependency at all. Prefer that over
+`readSkelFile(File)` for any bundled skeleton. The exception is `IdeaKotlinSkeletonCompileTest`,
+Maven-only because it needs `kotlin-compiler-embeddable` and no Bazel target provides a Kotlin
+toolchain.
 
 ### Generation pipeline
 
@@ -219,7 +266,9 @@ with no common superclass. So:
 - **A fix in `Emitter` almost always needs mirroring in `KotlinEmitter`, and vice versa.** The recent
   history is largely Kotlin-only fixes for divergences introduced by the copy (`#15` bare `break` in
   `emitEOFVal`, the `%bol` fall-through below, `Action.Kind.GENERAL_LOOK` handling, stray `;`,
-  `offsetByCodePoints`).
+  `offsetByCodePoints`, and `zzBufferL.charAt(...)` in the `%bol` block, which does not resolve in
+  Kotlin — `CharSequence` is indexed with `[...]` — so until `IdeaKotlinSkeletonCompileTest` was
+  added, every Kotlin spec using `^` emitted a scanner that would not compile).
 - **Java `switch` fall-through is the recurring trap in this fork.** `Emitter` leans on it in three
   places; Kotlin `when` has no fall-through, so each one needs a comma-separated branch instead. Two
   of the three were mistranslated. `#15` was one (a synthetic `case <n>: break;` became a bare
@@ -248,9 +297,20 @@ discarded, so **sections are positional**. A skeleton with any other count is re
 `WRONG_SKELETON` (`jflex/src/main/java/jflex/skeleton/Skeleton.java:43`, `:135`). Adding or removing a
 marker means updating every skeleton plus the emitters' `emitNext()` sequence.
 
+**The `L1..L20` suffixes on the Kotlin skeletons' markers are comments, and they lie.** Because
+sections are positional, only the physical order matters, and the three skeletons disagree on it:
+`idea-flex.skeleton` has "throws clause" 7th, `idea-flex-kotlin.skeleton` has it **9th** (after
+"zzDoEOF"), and `kotlin_skeleton.nested` has it **4th**. `idea-flex-kotlin.skeleton`'s order is the
+correct one for `KotlinEmitter` — verified by generating and compiling — so `KotlinEmitter`'s
+`emitNext()` sequence genuinely differs from `Emitter`'s, and the marker text is simply stale. Do not
+"fix" a Kotlin skeleton by reordering its sections to match the numbering or the Java skeleton; check
+the emitter's `skel.emitNext()` call sites (they carry `// <n>` comments) and the generated output
+instead.
+
 | File | Role |
 | --- | --- |
 | `jflex/src/main/resources/jflex/idea-flex.skeleton` | **the default** (`DEFAULT_LOC`), IntelliJ incremental-lexer API |
+| `jflex/src/main/resources/jflex/idea-flex-kotlin.skeleton` | the IntelliJ **Kotlin** skeleton; the `idea-flex.skeleton` API ported to Kotlin over a `CharSequence` |
 | `jflex/src/main/jflex/skeleton.nested` | source-tree file used for the bootstrap; adds `%include`/nested-stream support (`Deque<ZzFlexStreamInfo>`, `zzPushStream`/`zzPopStream`) |
 | `jflex/src/main/jflex/kotlin_skeleton.nested` | the Kotlin skeleton; KMP-oriented (`kotlinx.io.Source`, `CharSequence.codePoint`/`codePointBefore` extensions) |
 | `jflex/src/main/resources/jflex/skeleton.default` | upstream's default; currently unused |
@@ -260,6 +320,12 @@ marker means updating every skeleton plus the emitters' `emitNext()` sequence.
 `makePrivate()` (for `%apiprivate`) mutates it in place and leaks across generations in one JVM, and
 `OptionUtils.setDefaultOptions()` calls `Skeleton.readDefault()` — so resetting options discards a
 previously set `--skel`, including via `new LexGenerator(file)` when `Options.encoding == null`.
+
+The two `idea-flex*` skeletons are **also maintained in the IntelliJ monorepo**, at
+`community/tools/lexer/`, where `tools/lexer/build.xml`'s `flex` and `kflex` Ant macros pass them to
+a downloaded JFlex jar. Both copies must stay `diff`-clean; `idea-flex.skeleton` currently is. That
+is the whole reason `idea-flex-kotlin.skeleton` was brought here — the jar now ships the skeleton it
+was tested against, rather than the monorepo hand-updating its copy per release.
 
 Files under `src/main/resources/` are packaged into the jar and found by classloader lookup; the
 `.nested` files are plain source-tree files referenced by path (`jflex/pom.xml`'s `<skeleton>`, and
@@ -273,8 +339,19 @@ and `KotlinEmitter` and between the `.java`/`.kt` extension. The Maven plugin ex
 `<outputMode>`; `JFlexTask` does not, so **Kotlin output is unreachable from Ant**. There is no
 `%`-directive for it, so it cannot be selected per-spec.
 
-Nothing in the build or tests pairs Kotlin mode with the Kotlin skeleton. To get real Kotlin you must
-pass both:
+Kotlin mode does **not** imply a Kotlin skeleton — the default stays `idea-flex.skeleton`, which is
+Java — so to get real Kotlin you must pass both. For an IntelliJ lexer (the usual case), that is:
+
+```shell
+java -jar jflex/target/jflex-1.10.17.jar --output-mode kotlin \
+  --skel jflex/src/main/resources/jflex/idea-flex-kotlin.skeleton -d /tmp/out spec.flex
+```
+
+`idea-flex-kotlin.skeleton` is a jar resource, so from a released jar there is no path to pass to
+`--skel`; extract it first, or do what the tests do and load it through the classloader with
+`Skeleton.readSkel(BufferedReader)`. Making `--output-mode kotlin` select it automatically was
+considered and deliberately not done — it would change generator defaults. The `kotlin_skeleton.nested`
+pairing is the other option, and its output does not compile:
 
 ```shell
 java -jar jflex/target/jflex-1.10.17.jar --output-mode kotlin \
