@@ -74,6 +74,28 @@ java_test(
     ],
 )
 
+# Generation-only golden over the Kotlin compiler's own lexer spec; see the test's javadoc.
+java_test(
+    name = "KotlinLangLexerEmitterTest",
+    size = "medium",
+    # KotlinEmitterTest.java carries the shared moduleFile/outputDir/readSkeletonResource
+    # helpers these tests call. Maven compiles all test sources together; Bazel needs it
+    # listed. Only KotlinLangLexerEmitterTest runs -- java_test infers test_class from the target name.
+    srcs = [
+        "KotlinEmitterTest.java",
+        "KotlinLangLexerEmitterTest.java",
+    ],
+    data = ["//jflex/src/test/resources"],
+    deps = [
+        "//jflex:resources",
+        "//jflex/src/main/java/jflex/core",
+        "//jflex/src/main/java/jflex/generator",
+        "//jflex/src/main/java/jflex/option",
+        "//jflex/src/main/java/jflex/skeleton",
+        "//third_party/com/google/truth",
+    ],
+)
+
 java_test(
     name = "IdeaSkeletonCompileTest",
     size = "small",
