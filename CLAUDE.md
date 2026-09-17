@@ -111,6 +111,22 @@ Lexing `^"start"` at offset 0 *and* after a newline is the point: it is what dis
 `zzAtBOL` from a broken one, which no golden can do on its own (refreshing a golden just copies
 whatever was emitted). This caught a real bug — see the `charAt` note under the emitter hierarchy.
 
+`skeleton_kotlin.default` is gated the same way, by `KotlinDefaultSkeletonCompileTest` (also
+Maven-only, also `K2JVMCompiler`). It uses its own fixture, `kotlin-default-skeleton.flex`, because
+that skeleton is standalone — no `%implements`, so no `FlexLexer` and no `LexerDriver`; the test
+drives the scanner by reflection over `constructor(kotlinx.io.Source)` and `yylex()`. Beyond `^` at
+offset 0, it asserts fixed lookahead (`offsetByCodePoints`), lexical states, and — the cases a short
+input never reaches — buffer refill and a supplementary code point landing on the buffer boundary.
+Both bugs found while writing that skeleton would have passed a golden unnoticed:
+
+- `zzAtBOL` was never initialised, so `^` never matched at offset 0. `KotlinEmitter` declares
+  `zzAtBOL = false` where `Emitter` declares it `true` (`Emitter.java:1352`) — see Known dead or
+  broken code. The `Idea*` skeletons hide this because their `reset()` assigns `zzAtBOL = true`; a
+  skeleton with no `reset()` does not.
+- a surrogate pair was split when the high surrogate took the buffer's last free position, so the
+  scanner matched each half as a character of its own. The skeleton now holds the whole code point
+  in `zzPendingCodePoint` rather than writing half a pair.
+
 `kotlin-compiler-embeddable` is a test-scope dependency of the `jflex` module for this, and the test
 passes surefire's own classpath (`java.class.path`) through to `-classpath`, so `kotlin-stdlib` and
 the `FlexLexer` the scanner implements both resolve without a hand-assembled classpath. Assembling
@@ -332,7 +348,7 @@ instead.
 | `jflex/src/main/jflex/skeleton.nested`                     | source-tree file used for the bootstrap; adds `%include`/nested-stream support (`Deque<ZzFlexStreamInfo>`, `zzPushStream`/`zzPopStream`) |
 | `jflex/src/main/jflex/kotlin_skeleton.nested`              | the Kotlin skeleton; KMP-oriented (`kotlinx.io.Source`, `CharSequence.codePoint`/`codePointBefore` extensions)                           |
 | `jflex/src/main/resources/jflex/skeleton.default`          | upstream's default; currently unused                                                                                                     |
-| `jflex/src/main/resources/jflex/skeleton_kotlin.default`   | **broken and unreferenced** — 41 sections (two skeletons concatenated), so `readSkel` would reject it                                    |
+| `jflex/src/main/resources/jflex/skeleton_kotlin.default`   | the **default Kotlin** skeleton; standalone streaming scanner over `kotlinx.io.Source`, gated by `KotlinDefaultSkeletonCompileTest`      |
 
 `Skeleton.line[]` is a **static** array loaded by a static initializer. Consequences worth knowing:
 `makePrivate()` (for `%apiprivate`) mutates it in place and leaks across generations in one JVM, and
@@ -370,13 +386,38 @@ java -jar jflex/target/jflex-1.10.18.jar --output-mode kotlin \
 jflex/idea-flex-kotlin.skeleton -d /tmp`), or do what the tests do and load it through the
 classloader with
 `Skeleton.readSkel(BufferedReader)`. Making `--output-mode kotlin` select it automatically was
-considered and deliberately not done — it would change generator defaults. The `kotlin_skeleton.nested`
-pairing is the other option, and its output does not compile:
+considered and deliberately not done — it would change generator defaults.
+
+For a **standalone** Kotlin scanner (not an IntelliJ lexer), pair it with `skeleton_kotlin.default`,
+which is also packaged in the jar and whose output is compile-gated:
+
+```shell
+unzip -o -j jflex/target/jflex-1.10.18.jar jflex/skeleton_kotlin.default -d /tmp
+java -jar jflex/target/jflex-1.10.18.jar --output-mode kotlin \
+  --skel /tmp/skeleton_kotlin.default -d /tmp/out spec.flex
+```
+
+That skeleton is a streaming scanner: it declares no overrides (so the spec needs no `%implements`),
+supplies its own `constructor(kotlinx.io.Source)` because `KotlinEmitter` emits none, and decodes
+UTF-8 itself using only `Source` **interface members** (`readByte`, `exhausted`). The member-only
+restriction is not stylistic — a skeleton cannot emit imports, because its first section begins
+after `emitClassName()` has already printed `class Foo {`, and Kotlin cannot reach a top-level
+extension such as `kotlinx.io.readCodePointValue` without one (nor the `Utf8Kt` facade, which is
+invisible to Kotlin source). The generated scanner needs `kotlinx-io-core` at **runtime**; the
+generator itself does not.
+
+The `kotlin_skeleton.nested` pairing is the third option, and its output does not compile:
 
 ```shell
 java -jar jflex/target/jflex-1.10.18.jar --output-mode kotlin \
   --skel jflex/src/main/jflex/kotlin_skeleton.nested -d /tmp/out spec.flex
 ```
+
+Two of its 18 errors have identified root causes, both worth knowing before touching it: its
+"throws clause" section sits at physical position **4** instead of 9 (see the section-order note
+above), which mis-splices the `zzScanError` body into the companion object; and it stores input with
+`zzReader.readCodePointValue().toChar()`, which truncates to the low 16 bits — U+1F600 silently
+becomes U+F600 — and writes one code unit where a supplementary code point needs two.
 
 The Kotlin toolchain is wired up in the poms (`kotlin-maven-plugin` runs before `javac`, whose default
 executions are bound to `phase none` and re-declared), but there are currently **zero `.kt` sources**
@@ -472,6 +513,13 @@ Verified, so you don't spend time on it:
 - `--uniprops <ver>` is broken: it reflectively looks up `jflex.unicode.data.Unicode_X_Y`, but the
   data classes live in `jflex.core.unicode.data`, so every version reports
   `Unsupported Unicode version` — including versions its own error message lists as supported.
+- `KotlinEmitter.emitVarDefs` declares `zzAtBOL = false`; `Emitter.java:1352` declares it `true`. So
+  in Kotlin mode a `^` anchor never matches at offset 0 unless something else sets the flag. All
+  three Kotlin skeletons that ship today are unaffected in practice — the two `idea-flex*` ones
+  assign `zzAtBOL = true` in `reset()`, and `skeleton_kotlin.default` calls `yyResetPosition()` from
+  its constructor — but a new Kotlin skeleton that does neither inherits the bug. Fixing it at the
+  source means refreshing the three Kotlin goldens, which is why it was left alone;
+  `KotlinDefaultSkeletonCompileTest` pins the behaviour either way.
 - `Main.printUsage()` does not document `--output-mode`.
 - `scripts/clean.sh` still purges `~/.m2/repository/de/jflex`, not the fork's coordinates.
 - Root `pluginManagement` pins `org.jetbrains.intellij.deps.jflex:cup-maven-plugin:1.2`, but that
