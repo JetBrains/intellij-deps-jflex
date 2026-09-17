@@ -5,6 +5,84 @@
 
 # JFlex Change Log
 
+## [JFlex 1.10.18](https://github.com/JetBrains/intellij-deps-jflex/compare/5eec1876...intellij/1.10.18) (Sep 17, 2026)
+
+First entry for the `org.jetbrains.intellij.deps.jflex` fork; releases 1.10.0 through
+1.10.17 are not recorded here. Nearly everything below concerns Kotlin output
+(`--output-mode kotlin`), whose emitter is a separate copy of the Java one.
+
+### Fixed bugs
+
+- `^` anchors never matched at offset 0 in Kotlin mode: `KotlinEmitter` declared
+  `zzAtBOL = false` where `Emitter` declares it `true`. Present for as long as Kotlin
+  output has existed, and masked by the IntelliJ skeletons, whose `reset()` sets the flag
+  before lexing starts.
+- `%bol`: the six newline characters that share one `switch` arm in `Emitter` were emitted
+  as six separate `when` arms, five of them empty, because Kotlin `when` does not fall
+  through. `zzAtBOL` was therefore only ever set for `' '`, breaking every `^` anchor in
+  Kotlin mode.
+- Kotlin scanners using `^` did not compile: the buffer was read with Java's
+  `CharSequence.charAt`, which does not resolve in Kotlin (`unresolved reference 'charAt'`).
+  Five occurrences, in the line-count peek and the `zzAtBOL` assignment.
+- State-scoped EOF actions emitted a bare `<n> -> break` in the EOF `when`
+  ([#15](https://github.com/JetBrains/intellij-deps-jflex/issues/15)). Under a skeleton
+  whose scan loop has no trailing `return` — including this fork's default — the generated
+  Kotlin failed with "missing return statement".
+- `codePointBefore` was missing and `codePointAt` was implemented incorrectly
+  ([#14](https://github.com/JetBrains/intellij-deps-jflex/issues/14)).
+- corrected generation for `Action.Kind.GENERAL_LOOK` in `KotlinEmitter`.
+- **Java output:** the default `%cup` EOF value was emitted without `new`, so every `%cup`
+  spec generated `return java_cup.runtime.Symbol(sym.EOF);` — a call to a method that does
+  not exist. The keyword had been dropped to make Kotlin output valid, but `eofVal` is a
+  string built in `LexScan.flex` and emitted verbatim by both emitters; it is conditional on
+  the output mode now.
+
+### Skeletons
+
+- ship `jflex/idea-flex-kotlin.skeleton`, the IntelliJ Kotlin skeleton, as a packaged jar
+  resource. It had lived only in the IntelliJ monorepo (`community/tools/lexer/`) and was
+  hand-updated there against each release; the jar now carries the skeleton it was tested
+  against. Copied verbatim, so both copies stay `diff`-clean.
+- `jflex/skeleton_kotlin.default` is a working skeleton again. It was two drafts
+  concatenated, 41 sections instead of the required 21, so `readSkel` rejected it outright
+  and nothing could load it. It is now a standalone streaming Kotlin scanner over
+  `kotlinx.io.Source` — the counterpart of `skeleton.default` — which decodes UTF-8 using
+  only `Source` interface members, because a skeleton cannot emit imports. Fixes, relative
+  to the draft it replaces, a truncation of supplementary code points
+  (`readCodePointValue().toChar()` mapped U+1F600 to U+F600) and a split surrogate pair when
+  a high surrogate took the buffer's last free position.
+- no generator defaults changed: `--output-mode kotlin` still does not imply a Kotlin
+  skeleton, and the default remains `jflex/idea-flex.skeleton`.
+
+### Other
+
+- first compile checks on generated Kotlin: `IdeaKotlinSkeletonCompileTest` and
+  `KotlinDefaultSkeletonCompileTest` compile the emitted scanner with `K2JVMCompiler` and
+  run it, asserting `^` at offset 0 and after a newline, fixed lookahead, lexical states,
+  buffer refill and a supplementary code point on the buffer boundary.
+  `IdeaSkeletonCompileTest` does the same for Java output with `javax.tools.JavaCompiler`.
+  A golden cannot catch these regressions, since refreshing one only records whatever was
+  emitted.
+- new golden tests: both IntelliJ skeletons (`IdeaSkeletonEmitterTest`,
+  `IdeaKotlinSkeletonEmitterTest` — the fork's default skeleton had had no golden at all),
+  `kotlin_skeleton.nested` (`KotlinSkeletonEmitterTest`), and the Kotlin compiler's own
+  lexer spec generated with `idea-flex-kotlin.skeleton`, a real downstream consumer large
+  enough to reach emitter paths a hand-written fixture does not. `CupEofValueTest` asserts
+  the `%cup` EOF value in both output modes.
+- `kotlin-compiler-embeddable` is a test-scope dependency of the `jflex` module for the
+  Kotlin compile gates.
+- unbreak the Bazel build of `jflex`, where no test in `jflex/src/test/.../generator` could
+  build: `option/BUILD.bazel` omitted the fork's `OutputMode.java` from an explicit `srcs`
+  list, Error Prone (which Maven does not run) rejected `Emitter` for `WildcardImport`,
+  `MissingOverride` and a `HidingField`, and `core/BUILD.bazel` globbed in the unreferenced
+  `KotlinAbstractLexScan.java`, whose `kotlinx.io` imports have no Bazel dependency. Emitted
+  Java is byte-identical before and after. `KotlinEmitterTest` and the new `Idea*` tests
+  have Bazel targets now.
+- document the build, the emitter split and the skeleton machinery in `CLAUDE.md`,
+  including that skeleton sections are positional and the `L1..L20` marker comments on the
+  Kotlin skeletons are stale.
+
+
 ## [JFlex 1.9.1](https://github.com/jflex-de/jflex/milestone/21?closed=1) (Mar 11, 2023)
 
 - fix negated char classes with overlapping content (#1065, #1066):
