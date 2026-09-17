@@ -1,395 +1,23 @@
-
 companion object {
   /** This character denotes the end of file. */
-  var YYEOF: Int = -1;
+  private const val YYEOF = -1
 
   /** Initial size of the lookahead buffer. */
---- private static final int ZZ_BUFFERSIZE = ...; L1
+--- 1. ZZ_BUFFERSIZE
 
-  // Lexical states.
----  lexical states, charmap L2
+  /** Lexical states. */
+--- 2. lexical states, charmap, action table, rowmap, dynamic init
 
-  /** error code for "unknown internal scanner error". */
-  private var ZZ_UNKNOWN_ERROR: Int = 0;
-  /** error code for "could not match input". */
-  private var ZZ_NO_MATCH: Int = 1;
-  /** error code for "pushback value was too large". */
-  private var ZZ_PUSHBACK_2BIG: Int = 2;
-
-  /**
-   * error messages for {@link #ZZ_UNKNOWN_ERROR}, {@link #ZZ_NO_MATCH}, and
-   * {@link #ZZ_PUSHBACK_2BIG} respectively.
-   */
-  var ZZ_ERROR_MSG = arrayOf(
-    "Unknown internal scanner error",
-    "Error: could not match input",
-    "Error: pushback value was too large"
-  );
-
---- isFinal list L3
-    var message: String = try {
-        ZZ_ERROR_MSG[errorCode];
-    } catch (e: IndexOutOfBoundsException ) {
-        ZZ_ERROR_MSG[ZZ_UNKNOWN_ERROR];
-    }
-
---- throws clause L7
-}
-  /** Input device. */
-  private lateinit var zzReader: kotlinx.io.Source
-
-  /** Current state of the DFA. */
-  private var zzState: Int = 0
-
-  /** Current lexical state. */
-  private var zzLexicalState: Int = YYINITIAL
-
-  /**
-   * This buffer contains the current text to be matched and is the source of the {@link #yytext()}
-   * string.
-   */
-  private var zzBuffer: CharArray = CharArray(kotlin.math.min(ZZ_BUFFERSIZE, zzMaxBufferLen()))
-
-  /** Text position at the last accepting state. */
-  private var zzMarkedPos: Int = 0;
-
-  /** Current text position in the buffer. */
-  private var zzCurrentPos: Int = 0;
-
-  /** Marks the beginning of the {@link #yytext()} string in the buffer. */
-  private var zzStartRead: Int = 0;
-
-  /** Marks the last character in the buffer, that has been read from input. */
-  private var zzEndRead: Int = 0;
-
-  /**
-   * Whether the scanner is at the end of file.
-   * @see #yyatEOF
-   */
-  private var zzAtEOF: Boolean = false;
-
-  /**
-   * The number of occupied positions in {@link #zzBuffer} beyond {@link #zzEndRead}.
-   *
-   * <p>When a lead/high surrogate has been read from the input stream into the final
-   * {@link #zzBuffer} position, this will have a value of 1; otherwise, it will have a value of 0.
-   */
-  private var zzFinalHighSurrogate: Int = 0;
-
---- user class code L4
-
---- constructor declaration L5
-
-    /**
-     * Refills the input buffer.
-     *
-     * @return {@code false} iff there was new input.
-     * @exception kotlinx.io.IOException  if any I/O-Error occurs
-     */
-    @Throws(kotlinx.io.IOException::class)
-    private fun zzRefill(): Boolean {
-
-        /* first: make room (if you can) */
-        if (zzStartRead > 0) {
-            zzEndRead += zzFinalHighSurrogate;
-            zzFinalHighSurrogate = 0;
-            System.arraycopy(
-                zzBuffer, zzStartRead,
-                zzBuffer, 0,
-                zzEndRead - zzStartRead
-            );
-
-            /* translate stored positions */
-            zzEndRead -= zzStartRead;
-            zzCurrentPos -= zzStartRead;
-            zzMarkedPos -= zzStartRead;
-            zzStartRead = 0;
-        }
-
-        /* is the buffer big enough? */
-        if (zzCurrentPos >= zzBuffer.size - zzFinalHighSurrogate && zzCanGrow()) {
-            /* if not, and it can grow: blow it up */
-            var newBuffer: CharArray = CharArray(kotlin.math.min(zzBuffer.size * 2, zzMaxBufferLen()));
-            zzBuffer.copyInto(newBuffer, 0, 0, zzBuffer.size)
-            zzBuffer = newBuffer;
-            zzEndRead += zzFinalHighSurrogate;
-            zzFinalHighSurrogate = 0;
-        }
-
-        /* fill the buffer with new input */
-        var requested: Int = zzBuffer.size - zzEndRead;
-        var numRead: Int = zzReader.read(zzBuffer, zzEndRead, requested);
-
-        /* not supposed to occur according to specification of kotlinx.io.Source */
-        if (numRead == 0) {
-            if (requested == 0) {
-                throw kotlinx.io.EOFException("Scan buffer limit reached [" + zzBuffer.size + "]");
-            } else {
-                throw kotlinx.io.IOException(
-                    "Reader returned 0 characters. See JFlex examples/zero-reader for a workaround."
-                );
-            }
-        }
-        if (numRead > 0) {
-            zzEndRead += numRead;
-            if (zzBuffer[zzEndRead - 1]).isHighSurrogate() {
-                if (numRead == requested) { // We requested too few chars to encode a full Unicode character
-                    --zzEndRead;
-                    zzFinalHighSurrogate = 1;
-                } else {                    // There is room in the buffer for at least one more char
-                    var c: Int = zzReader.read();  // Expecting to read a paired low surrogate char
-                    if (c == -1) {
-                        return true;
-                    } else {
-                        zzBuffer[zzEndRead++] = c.toChar();
-                    }
-                }
-            }
-            /* potentially more input available */
-            return false;
-        }
-
-        /* numRead < 0 ==> end of stream */
-        return true;
-    }
-
-
-    /**
-     * Closes the input reader.
-     *
-     * @throws kotlinx.io.IOException if the reader could not be closed.
-     */
-    @Throws(kotlinx.io.IOException::class)
-    fun yyclose() {
-        zzAtEOF = true; // indicate end of file
-        zzEndRead = zzStartRead; // invalidate buffer
-
-        if (zzReader != null) {
-            zzReader.close();
-        }
-    }
-
-
-    /**
-     * Resets the scanner to read from a new input stream.
-     *
-     * <p>Does not close the old reader.
-     *
-     * <p>All internal variables are reset, the old input stream <b>cannot</b> be reused (internal
-     * buffer is discarded and lost). Lexical state is set to {@code ZZ_INITIAL}.
-     *
-     * <p>Internal scan buffer is resized down to its initial length, if it has grown.
-     *
-     * @param reader The new input stream.
-     */
-    fun yyreset(reader: kotlinx.io.Source) {
-        zzReader = reader;
-        zzEOFDone = false;
-        yyResetPosition();
-        zzLexicalState = YYINITIAL;
-        var initBufferSize: Int = kotlin.math.min(ZZ_BUFFERSIZE, zzMaxBufferLen());
-        if (zzBuffer.size > initBufferSize) {
-            zzBuffer = CharArray(initBufferSize);
-        }
-    }
-
-    /**
-     * Resets the input position.
-     */
-    private fun yyResetPosition() {
-        zzAtBOL = true;
-        zzAtEOF = false;
-        zzCurrentPos = 0;
-        zzMarkedPos = 0;
-        zzStartRead = 0;
-        zzEndRead = 0;
-        zzFinalHighSurrogate = 0;
-        yyline = 0;
-        yycolumn = 0;
-        yychar = 0L;
-    }
-
-
-    /**
-     * Returns whether the scanner has reached the end of the reader it reads from.
-     *
-     * @return whether the scanner has reached EOF.
-     */
-    fun yyatEOF(): Boolean {
-        return zzAtEOF;
-    }
-
-
-    /**
-     * Returns the current lexical state.
-     *
-     * @return the current lexical state.
-     */
-    fun yystate(): Int {
-        return zzLexicalState;
-    }
-
-
-    /**
-     * Enters a new lexical state.
-     *
-     * @param newState the new lexical state
-     */
-    fun yybegin(newState: Int) {
-        zzLexicalState = newState;
-    }
-
-
-    /**
-     * Returns the text matched by the current regular expression.
-     *
-     * @return the matched text.
-     */
-    fun yytext(): String {
-        return String(zzBuffer, zzStartRead, zzMarkedPos - zzStartRead);
-    }
-
-
-    /**
-     * Returns the character at the given position from the matched text.
-     *
-     * <p>It is equivalent to {@code yytext().charAt(pos)}, but faster.
-     *
-     * @param position the position of the character to fetch. A value from 0 to {@code yylength()-1}.
-     *
-     * @return the character at {@code position}.
-     */
-    fun yycharat(position: Int): Char {
-        return zzBuffer[zzStartRead + position];
-    }
-
-
-    /**
-     * How many characters were matched.
-     *
-     * @return the length of the matched text region.
-     */
-    fun yylength(): Int {
-        return zzMarkedPos - zzStartRead;
-    }
-
-
-    /**
-     * Reports an error that occurred while scanning.
-     *
-     * <p>In a well-formed scanner (no or only correct usage of {@code yypushback(int)} and a
-     * match-all fallback rule) this method will only be called with things that
-     * "Can't Possibly Happen".
-     *
-     * <p>If this method is called, something is seriously wrong (e.g. a JFlex bug producing a faulty
-     * scanner etc.).
-     *
-     * <p>Usual syntax/scanner level error handling should be done in error fallback rules.
-     *
-     * @param errorCode the code of the error message to display.
-     */
-
---- zzScanError declaration L6
-
-
-  /**
-   * Pushes the specified amount of characters back into the input stream.
-   *
-   * <p>They will be read again by then next call of the scanning method.
-   *
-   * @param number the number of characters to be read again. This number must not be greater than
-   *     {@link #yylength()}.
-   */
---- yypushback decl (contains zzScanError exception) L8
-    if ( number > yylength() )
-      zzScanError(ZZ_PUSHBACK_2BIG);
-
-    zzMarkedPos -= number;
-  }
-
-
---- zzDoEOF L9
-
-
-  /**
-   * Resumes scanning until the next regular expression is matched, the end of input is encountered
-   * or an I/O-Error occurs.
-   *
-   * @return the next token.
-   * @exception kotlinx.io.IOException if any I/O-Error occurs.
-   */
---- yylex declaration L10
-    var zzInput: Int = 0;
-    var zzAction: Int = 0;
-
-    // cached fields:
-    var zzCurrentPosL: Int = 0;
-    var zzMarkedPosL: Int = 0;
-    var zzEndReadL: Int = zzEndRead;
-    var zzBufferL: CharArray = zzBuffer;
-
---- local declarations L11
-
-    while (true) {
-      zzMarkedPosL = zzMarkedPos;
-
---- start admin (line, char, col count) L12
-      zzAction = -1;
-
-      zzCurrentPosL = zzMarkedPosL
-      zzCurrentPos = zzMarkedPosL
-      zzStartRead = zzMarkedPosL
-
---- start admin (lexstate etc) L13
-
-      run zzForAction@{
-        while (true) {
-
---- next input, line, col, char count, next transition, isFinal action L14
-            zzAction = zzState;
-            zzMarkedPosL = zzCurrentPosL;
---- line count update L15
-          }
-
-        }
-      }
-
-      // store back cached position
-      zzMarkedPos = zzMarkedPosL;
---- char count update L16
-
-      if (zzInput == YYEOF && zzStartRead == zzCurrentPos) {
-        zzAtEOF = true;
---- eofvalue L17
-      }
-      else {
---- actions L18
-          else ->
---- no match L19
-        }
-      }
-    }
-    return null
-  }
-
---- main L20
-}
-companion object {
-  /** This character denotes the end of file */
-  private const val YYEOF = -1;
-
-  /** initial size of the lookahead buffer */
---- private static final int ZZ_BUFFERSIZE = ...; L1
-
-  /** lexical states */
----  lexical states, charmap L2
-
-  /* error codes */
+  /** Error code for "unknown internal scanner error". */
   private const val ZZ_UNKNOWN_ERROR = 0
+  /** Error code for "could not match input". */
   private const val ZZ_NO_MATCH = 1
+  /** Error code for "pushback value was too large". */
   private const val ZZ_PUSHBACK_2BIG = 2
 
-  /* error messages for the codes above */
+  /**
+   * Error messages for [ZZ_UNKNOWN_ERROR], [ZZ_NO_MATCH] and [ZZ_PUSHBACK_2BIG] respectively.
+   */
   @JvmStatic
   val ZZ_ERROR_MSG = arrayOf(
     "Unknown internal scanner error",
@@ -397,243 +25,462 @@ companion object {
     "Error: pushback value was too large"
   )
 
---- isFinal list L3
+--- 3. isFinal list (ZZ_ATTRIBUTE), main
 }
-  /** the input device */
+  /** The input device. */
   private lateinit var zzReader: kotlinx.io.Source
 
-  /** the current state of the DFA */
+  /** The current state of the DFA. */
   private var zzState = 0
 
-  /** the current lexical state */
+  /** The current lexical state. */
   private var zzLexicalState = YYINITIAL
 
-  /** this buffer contains the current text to be matched and is
-      the source of the yytext() string */
-  private var zzBuffer: CharSequence = "";
+  /**
+   * This buffer contains the current text to be matched and is the source of the [yytext] string.
+   */
+  private var zzBuffer: CharArray = CharArray(kotlin.math.min(ZZ_BUFFERSIZE, zzMaxBufferLen()))
 
-  /** the textposition at the last accepting state */
+  /** Text position at the last accepting state. */
   private var zzMarkedPos = 0
 
-  /** the current text position in the buffer */
+  /** Current text position in the buffer. */
   private var zzCurrentPos = 0
 
-  /** startRead marks the beginning of the yytext() string in the buffer */
+  /** Marks the beginning of the [yytext] string in the buffer. */
   private var zzStartRead = 0
 
-  /** endRead marks the last character in the buffer, that has been read
-      from input */
+  /** Marks the last character in the buffer that has been read from input. */
   private var zzEndRead = 0
 
-  /**
-   * Whether the scanner is at the end of file.
-   * @see #yyatEOF
-   */
+  /** Whether the scanner is at the end of file. */
   private var zzAtEOF = false
 
---- user class code L4
+  /**
+   * A code point decoded from the input but not yet stored in [zzBuffer], or -1 when there is none.
+   *
+   * A [kotlinx.io.Source] cannot un-read. When a supplementary code point is decoded and only one
+   * free position is left in the buffer, it is held here **whole** rather than split, so that
+   * [zzBuffer] never ends in a lone high surrogate -- which the scanner would otherwise match as a
+   * character in its own right.
+   */
+  private var zzPendingCodePoint = -1
 
---- constructor declaration L5
+--- 4. user class code (closes the companion object)
 
-  override fun getTokenStart(): Int {
-    return zzStartRead
+  /**
+   * Creates a new scanner reading from [reader].
+   *
+   * @param reader the input to scan.
+   */
+  constructor(reader: kotlinx.io.Source) {
+    this.zzReader = reader
+    // Establishes the initial position state, zzAtBOL in particular: offset 0 is the beginning of
+    // a line, so a `^` anchor must match there. KotlinEmitter declares zzAtBOL = false (Emitter
+    // declares it true), and emits no constructor, so nothing else would set it.
+    yyResetPosition()
   }
 
-  override fun getTokenEnd(): Int {
-    return getTokenStart() + yylength()
-  }
-
-  override fun reset(buffer: CharSequence, start: Int, end: Int, initialState: Int) {
-    zzBuffer = buffer
-    zzCurrentPos = start
-    zzMarkedPos = start
-    zzStartRead = start
-    zzAtEOF  = false
-    zzAtBOL = true
-    zzEndRead = end
-    yybegin(initialState)
-  }
+--- 5. constructor declaration (unused: KotlinEmitter emits no constructor)
 
   /**
    * Refills the input buffer.
    *
-   * @return      {@code false}, iff there was new input.
-   *
-   * @exception   kotlinx.io.IOException  if any I/O-Error occurs
+   * @return `false` iff there was new input.
+   * @throws kotlinx.io.IOException if any I/O error occurs.
    */
   @Throws(kotlinx.io.IOException::class)
   private fun zzRefill(): Boolean {
+
+    /* first: make room (if you can) */
+    if (zzStartRead > 0) {
+      zzBuffer.copyInto(zzBuffer, 0, zzStartRead, zzEndRead)
+
+      /* translate stored positions */
+      zzEndRead -= zzStartRead
+      zzCurrentPos -= zzStartRead
+      zzMarkedPos -= zzStartRead
+      zzStartRead = 0
+    }
+
+    /* is the buffer big enough? */
+    if (zzCurrentPos >= zzBuffer.size && zzCanGrow()) {
+      /* if not, and it can grow: blow it up */
+      val newBuffer = CharArray(kotlin.math.min(zzBuffer.size * 2, zzMaxBufferLen()))
+      zzBuffer.copyInto(newBuffer, 0, 0, zzBuffer.size)
+      zzBuffer = newBuffer
+    }
+
+    /* fill the buffer with new input */
+    val requested: Int = zzBuffer.size - zzEndRead
+    if (requested == 0) {
+      throw kotlinx.io.EOFException("Scan buffer limit reached [" + zzBuffer.size + "]")
+    }
+
+    val numRead: Int = zzReadChars(zzBuffer, zzEndRead, requested)
+    if (numRead > 0) {
+      zzEndRead += numRead
+      /* potentially more input available */
+      return false
+    }
+
+    /* numRead < 0 ==> end of stream */
     return true
   }
 
+  /**
+   * Decodes UTF-8 input from [zzReader] into UTF-16 code units.
+   *
+   * Reads at most [count] code units into [target], starting at [offset]. A supplementary code
+   * point that would not fit whole is held in [zzPendingCodePoint] and delivered on the next call,
+   * so a surrogate pair is never split across a buffer boundary.
+   *
+   * @return the number of code units read, or -1 at end of input.
+   * @throws kotlinx.io.IOException if any I/O error occurs.
+   */
+  @Throws(kotlinx.io.IOException::class)
+  private fun zzReadChars(target: CharArray, offset: Int, count: Int): Int {
+    var written = 0
+
+    while (written < count) {
+      val codePoint: Int
+      if (zzPendingCodePoint >= 0) {
+        codePoint = zzPendingCodePoint
+        zzPendingCodePoint = -1
+      } else {
+        if (zzReader.exhausted()) {
+          break
+        }
+        codePoint = zzReadCodePoint()
+      }
+
+      if (charCount(codePoint) == 1) {
+        target[offset + written] = codePoint.toChar()
+        written++
+      } else if (written + 2 <= count) {
+        val value: Int = codePoint - 0x10000
+        target[offset + written] = (0xD800 + (value shr 10)).toChar()
+        target[offset + written + 1] = (0xDC00 + (value and 0x3FF)).toChar()
+        written += 2
+      } else if (written > 0) {
+        /* Only one free position left: keep the code point whole for the next refill, so that the
+           buffer does not end in a lone high surrogate. */
+        zzPendingCodePoint = codePoint
+        break
+      } else {
+        /* count == 1, so a pair can never fit. Split rather than stall; a buffer this small cannot
+           represent supplementary code points faithfully. */
+        val value: Int = codePoint - 0x10000
+        target[offset] = (0xD800 + (value shr 10)).toChar()
+        zzPendingCodePoint = 0xDC00 + (value and 0x3FF)
+        written = 1
+        break
+      }
+    }
+
+    return if (written == 0) -1 else written
+  }
+
+  /**
+   * Reads one UTF-8 encoded code point from [zzReader].
+   *
+   * Malformed input is mapped to U+FFFD rather than reported, matching a lenient decoder. Callers
+   * must have established that the source is not exhausted.
+   *
+   * @return the code point read.
+   * @throws kotlinx.io.IOException if any I/O error occurs.
+   */
+  @Throws(kotlinx.io.IOException::class)
+  private fun zzReadCodePoint(): Int {
+    val b0: Int = zzReader.readByte().toInt() and 0xFF
+    if (b0 < 0x80) {
+      return b0
+    }
+
+    val extraBytes: Int = when {
+      (b0 and 0xE0) == 0xC0 -> 1
+      (b0 and 0xF0) == 0xE0 -> 2
+      (b0 and 0xF8) == 0xF0 -> 3
+      else -> return 0xFFFD
+    }
+
+    var codePoint: Int = b0 and (0x3F shr extraBytes)
+    for (i in 0 until extraBytes) {
+      if (zzReader.exhausted()) {
+        return 0xFFFD
+      }
+      val b: Int = zzReader.readByte().toInt() and 0xFF
+      if ((b and 0xC0) != 0x80) {
+        return 0xFFFD
+      }
+      codePoint = (codePoint shl 6) or (b and 0x3F)
+    }
+    return codePoint
+  }
+
+  /**
+   * Closes the input source.
+   *
+   * @throws kotlinx.io.IOException if the source could not be closed.
+   */
+  @Throws(kotlinx.io.IOException::class)
+  fun yyclose() {
+    zzAtEOF = true          // indicate end of file
+    zzEndRead = zzStartRead // invalidate buffer
+    zzReader.close()
+  }
+
+  /**
+   * Resets the scanner to read from a new input source.
+   *
+   * Does not close the old source. All internal variables are reset, the old input source
+   * **cannot** be reused (the internal buffer is discarded and lost). Lexical state is set to
+   * `ZZ_INITIAL`. The internal scan buffer is resized down to its initial length, if it has grown.
+   *
+   * @param reader the new input source.
+   */
+  fun yyreset(reader: kotlinx.io.Source) {
+    zzReader = reader
+    zzEOFDone = false
+    yyResetPosition()
+    zzLexicalState = YYINITIAL
+    val initBufferSize: Int = kotlin.math.min(ZZ_BUFFERSIZE, zzMaxBufferLen())
+    if (zzBuffer.size > initBufferSize) {
+      zzBuffer = CharArray(initBufferSize)
+    }
+  }
+
+  /** Resets the input position. */
+  private fun yyResetPosition() {
+    zzAtBOL = true
+    zzAtEOF = false
+    zzCurrentPos = 0
+    zzMarkedPos = 0
+    zzStartRead = 0
+    zzEndRead = 0
+    zzPendingCodePoint = -1
+    yyline = 0
+    yycolumn = 0
+    yychar = 0L
+  }
+
+  /**
+   * Returns whether the scanner has reached the end of the source it reads from.
+   *
+   * @return whether the scanner has reached EOF.
+   */
+  fun yyatEOF(): Boolean {
+    return zzAtEOF
+  }
 
   /**
    * Returns the current lexical state.
+   *
+   * @return the current lexical state.
    */
-  override fun yystate(): Int {
+  fun yystate(): Int {
     return zzLexicalState
   }
 
-
   /**
-   * Enters a new lexical state
+   * Enters a new lexical state.
    *
-   * @param newState the new lexical state
+   * @param newState the new lexical state.
    */
-  override fun yybegin(newState: Int) {
+  fun yybegin(newState: Int) {
     zzLexicalState = newState
   }
 
-
   /**
    * Returns the text matched by the current regular expression.
+   *
+   * @return the matched text.
    */
-  fun yytext(): CharSequence {
-    return zzBuffer.subSequence(zzStartRead, zzMarkedPos)
+  fun yytext(): String {
+    return String(zzBuffer, zzStartRead, zzMarkedPos - zzStartRead)
   }
 
-
   /**
-   * Returns the character at position {@code pos} from the
-   * matched text.
+   * Returns the character at the given position from the matched text.
    *
-   * It is equivalent to yytext().charAt(pos), but faster
+   * It is equivalent to `yytext()[position]`, but faster.
    *
-   * @param pos the position of the character to fetch.
-   *            A value from 0 to yylength()-1.
-   *
-   * @return the character at position pos
+   * @param position the position of the character to fetch. A value from 0 to `yylength()-1`.
+   * @return the character at [position].
    */
   fun yycharat(position: Int): Char {
-    return zzBuffer[zzStartRead + position];
+    return zzBuffer[zzStartRead + position]
   }
 
-
   /**
-   * Returns the length of the matched text region.
+   * How many characters were matched.
+   *
+   * @return the length of the matched text region.
    */
   fun yylength(): Int {
-    return zzMarkedPos - zzStartRead;
+    return zzMarkedPos - zzStartRead
+  }
+
+  /** Converts a UTF-16 surrogate pair to a Unicode code point. */
+  private fun zzToCodePoint(high: Char, low: Char): Int {
+    // UTF-16 high surrogate: 110110xxxxxxxxxx (10 bits)
+    // UTF-16 low surrogate:  110111yyyyyyyyyy (10 bits)
+    // Code point: 0x10000 + xxxxxxxxxxyyyyyyyyyy (21 bits)
+    return ((high.code - 0xD800) shl 10) + (low.code - 0xDC00) + 0x10000
   }
 
   /**
-   * Implementation of the `codePointAt` method of `java.lang.Character` for CharSequences
+   * Number of UTF-16 code units needed to represent [codePoint].
    *
-   * @param index the index of the character for which to retrieve the code point.
-   * @return the Unicode code point at the specified index.
-   * @throws IndexOutOfBoundsException if the index is outside the bounds of the character sequence.
+   * Stands in for `java.lang.Character.charCount`, which is not available in common Kotlin.
    */
-  fun CharSequence.codePoint(index: Int): Int {
-      val high = this[index]
-      if (high.isHighSurrogate() && index + 1 < length) {
-          val low = this[index + 1]
-          if (low.isLowSurrogate()) {
-              val codePoint: String = "$high$low"
-              return codePoint.codePointAt(0)
-          }
-      }
-      return high.code
-  }
-
   private fun charCount(codePoint: Int): Int = if (codePoint < 0x10000) 1 else 2
 
+  /**
+   * Length of the scan buffer, so that generated code can treat it like a `CharSequence`.
+   *
+   * Only the general-lookahead code path uses this.
+   */
+  private val CharArray.length: Int
+    get() = size
 
   /**
-   * Reports an error that occurred while scanning.
+   * Stands in for `java.lang.Character.codePointAt` on the scan buffer.
    *
-   * In a wellformed scanner (no or only correct usage of
-   * yypushback(int) and a match-all fallback rule) this method
-   * will only be called with things that "Can't Possibly Happen".
-   * If this method is called, something is seriously wrong
-   * (e.g. a JFlex bug producing a faulty scanner etc.).
-   *
-   * Usual syntax/scanner level error handling should be done
-   * in error fallback rules.
-   *
-   * @param   errorCode  the code of the errormessage to display
+   * @param index the index of the character for which to retrieve the code point.
+   * @return the Unicode code point at [index].
    */
---- zzScanError declaration L6
+  private fun CharArray.codePoint(index: Int): Int {
+    val high = this[index]
+    if (high.isHighSurrogate() && index + 1 < size) {
+      val low = this[index + 1]
+      if (low.isLowSurrogate()) {
+        return zzToCodePoint(high, low)
+      }
+    }
+    return high.code
+  }
 
+  /**
+   * Stands in for `java.lang.Character.codePointBefore` on the scan buffer.
+   *
+   * @param index the index following the code point to return.
+   * @return the Unicode code point before [index].
+   */
+  private fun CharArray.codePointBefore(index: Int): Int {
+    val low = this[index - 1]
+    if (low.isLowSurrogate() && index - 2 >= 0) {
+      val high = this[index - 2]
+      if (high.isHighSurrogate()) {
+        return zzToCodePoint(high, low)
+      }
+    }
+    return low.code
+  }
+
+  /**
+   * Stands in for `java.lang.String.offsetByCodePoints` on the scan buffer.
+   *
+   * Used by the fixed-length lookahead code paths.
+   *
+   * @param index the index to start from.
+   * @param codePointOffset the number of code points to move; may be negative.
+   * @return the resulting index.
+   */
+  private fun CharArray.offsetByCodePoints(index: Int, codePointOffset: Int): Int {
+    var result = index
+    if (codePointOffset >= 0) {
+      for (i in 0 until codePointOffset) {
+        result += charCount(this.codePoint(result))
+      }
+    } else {
+      for (i in 0 until -codePointOffset) {
+        result -= charCount(this.codePointBefore(result))
+      }
+    }
+    return result
+  }
+
+--- 6. zzScanError, yypushback, zzDoEOF and zzCMap declarations
 
   /**
    * Pushes the specified amount of characters back into the input stream.
    *
-   * They will be read again by then next call of the scanning method
+   * They will be read again by the next call of the scanning method.
    *
-   * @param number  the number of characters to be read again.
-   *                This number must not be greater than yylength()!
+   * @param number the number of characters to be read again. This number must not be greater than
+   *     [yylength].
    */
---- yypushback decl (contains zzScanError exception) L8
-    if ( number > yylength() )
+--- 7. yypushback declaration (carries the zzScanError exception)
+    if (number > yylength()) {
       zzScanError(ZZ_PUSHBACK_2BIG)
+    }
 
     zzMarkedPos -= number
   }
 
-
---- zzDoEOF L9
+--- 8. end of yypushback body; zzDoEOF follows
     val message = try {
       ZZ_ERROR_MSG[errorCode]
     } catch (e: IndexOutOfBoundsException) {
       ZZ_ERROR_MSG[ZZ_UNKNOWN_ERROR]
     }
 
---- throws clause L7
+--- 9. zzScanError body (the "throws clause" section)
   /**
-   * Resumes scanning until the next regular expression is matched,
-   * the end of input is encountered or an I/O-Error occurs.
+   * Resumes scanning until the next regular expression is matched, the end of input is encountered
+   * or an I/O error occurs.
    *
-   * @return      the next token
-   * @exception   kotlinx.io.IOException  if any I/O-Error occurs
+   * @return the next token.
+   * @throws kotlinx.io.IOException if any I/O error occurs.
    */
---- yylex declaration L10
-    var zzInput: Int = 0;
-    var zzAction: Int = 0;
+--- 10. yylex declaration
+    var zzInput: Int = 0
+    var zzAction: Int = 0
 
---- local declarations L11
+--- 11. local declarations
 
     while (true) {
       // cached fields:
       var zzCurrentPosL = 0
-      var zzMarkedPosL: Int = zzMarkedPos;
-      var zzEndReadL: Int = zzEndRead;
-      var zzBufferL: CharSequence = zzBuffer;
+      var zzMarkedPosL: Int = zzMarkedPos
+      var zzEndReadL: Int = zzEndRead
+      var zzBufferL: CharArray = zzBuffer
 
---- start admin (line, char, col count) L12
+--- 12. start admin (line, char, col count)
       zzAction = -1
 
       zzCurrentPosL = zzMarkedPosL
       zzCurrentPos = zzMarkedPosL
       zzStartRead = zzMarkedPosL
 
---- start admin (lexstate etc) L13
+--- 13. start admin (lexstate etc)
 
       zzForAction@ while (true) {
---- next input, line, col, char count, next transition, isFinal action L14
+--- 14. next input, line, col, char count, next transition, isFinal action
             zzAction = zzState
             zzMarkedPosL = zzCurrentPosL
---- line count update L15
+--- 15. line count update
           }
       }
 
       // store back cached position
       zzMarkedPos = zzMarkedPosL
---- char count update L16
+--- 16. char count update
 
       if (zzInput == YYEOF && zzStartRead == zzCurrentPos) {
         zzAtEOF = true
---- eofvalue L17
+--- 17. eofvalue
       }
       else {
---- actions L18
+--- 18. actions
           else ->
---- no match L19
+--- 19. no match
         }
       }
     }
-    return null
   }
 
---- main L20
+--- 20. main
 
 }

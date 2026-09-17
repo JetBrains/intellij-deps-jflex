@@ -100,6 +100,10 @@ java_test(
 # target provides (there are zero .kt sources in the repo, so no Kotlin toolchain is wired up).
 # IdeaKotlinSkeletonEmitterTest carries the Bazel-side coverage of that skeleton.
 
+# KotlinDefaultSkeletonCompileTest is Maven-only for the same reason as IdeaKotlinSkeletonCompileTest.
+# It has no Bazel-side counterpart: skeleton_kotlin.default is packaged by //jflex:resources and so
+# would load fine here, but asserting anything about it needs a Kotlin compiler.
+
 # KotlinSkeletonEmitterTest is deliberately Maven-only: it reads
 # jflex/src/main/jflex/kotlin_skeleton.nested, a source-tree file that no Bazel target exposes as
 # data (unlike src/main/resources/**, which //jflex:resources packages). Wiring it up means adding
