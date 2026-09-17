@@ -119,10 +119,10 @@ offset 0, it asserts fixed lookahead (`offsetByCodePoints`), lexical states, and
 input never reaches — buffer refill and a supplementary code point landing on the buffer boundary.
 Both bugs found while writing that skeleton would have passed a golden unnoticed:
 
-- `zzAtBOL` was never initialised, so `^` never matched at offset 0. `KotlinEmitter` declares
-  `zzAtBOL = false` where `Emitter` declares it `true` (`Emitter.java:1352`) — see Known dead or
-  broken code. The `Idea*` skeletons hide this because their `reset()` assigns `zzAtBOL = true`; a
-  skeleton with no `reset()` does not.
+- `zzAtBOL` was never initialised, so `^` never matched at offset 0. `KotlinEmitter` declared
+  `zzAtBOL = false` where `Emitter` declares it `true` (`Emitter.java:1352`); it now declares `true`
+  too. The `Idea*` skeletons had hidden this for as long as Kotlin mode has existed, because their
+  `reset()` assigns `zzAtBOL = true` — a skeleton with no `reset()` does not.
 - a surrogate pair was split when the high surrogate took the buffer's last free position, so the
   scanner matched each half as a character of its own. The skeleton now holds the whole code point
   in `zzPendingCodePoint` rather than writing half a pair.
@@ -513,13 +513,6 @@ Verified, so you don't spend time on it:
 - `--uniprops <ver>` is broken: it reflectively looks up `jflex.unicode.data.Unicode_X_Y`, but the
   data classes live in `jflex.core.unicode.data`, so every version reports
   `Unsupported Unicode version` — including versions its own error message lists as supported.
-- `KotlinEmitter.emitVarDefs` declares `zzAtBOL = false`; `Emitter.java:1352` declares it `true`. So
-  in Kotlin mode a `^` anchor never matches at offset 0 unless something else sets the flag. All
-  three Kotlin skeletons that ship today are unaffected in practice — the two `idea-flex*` ones
-  assign `zzAtBOL = true` in `reset()`, and `skeleton_kotlin.default` calls `yyResetPosition()` from
-  its constructor — but a new Kotlin skeleton that does neither inherits the bug. Fixing it at the
-  source means refreshing the three Kotlin goldens, which is why it was left alone;
-  `KotlinDefaultSkeletonCompileTest` pins the behaviour either way.
 - `Main.printUsage()` does not document `--output-mode`.
 - `scripts/clean.sh` still purges `~/.m2/repository/de/jflex`, not the fork's coordinates.
 - Root `pluginManagement` pins `org.jetbrains.intellij.deps.jflex:cup-maven-plugin:1.2`, but that

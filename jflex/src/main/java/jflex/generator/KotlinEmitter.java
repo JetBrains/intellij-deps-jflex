@@ -1316,7 +1316,10 @@ public final class KotlinEmitter extends IEmitter {
     if (!scanner.bolUsed()) {
       println("  @Suppress(\"unused\")");
     }
-    println("  private var zzAtBOL: Boolean = false");
+    // true, matching Emitter: offset 0 is the beginning of a line, so a `^` anchor has to match
+    // there. A skeleton whose reset() assigns zzAtBOL hides a wrong value here; one without a
+    // reset(), such as skeleton_kotlin.default, does not.
+    println("  private var zzAtBOL: Boolean = true");
     println();
     println("  /** Whether the user-EOF-code has already been executed. */");
     if (eofCode == null) {

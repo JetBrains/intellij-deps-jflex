@@ -290,7 +290,7 @@ companion object {
   private var yychar: Long = 0
 
   /** Whether the scanner is currently at the beginning of a line. */
-  private var zzAtBOL: Boolean = false
+  private var zzAtBOL: Boolean = true
 
   /** Whether the user-EOF-code has already been executed. */
   @Suppress("unused")

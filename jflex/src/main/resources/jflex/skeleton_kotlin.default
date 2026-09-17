@@ -75,9 +75,8 @@ companion object {
    */
   constructor(reader: kotlinx.io.Source) {
     this.zzReader = reader
-    // Establishes the initial position state, zzAtBOL in particular: offset 0 is the beginning of
-    // a line, so a `^` anchor must match there. KotlinEmitter declares zzAtBOL = false (Emitter
-    // declares it true), and emits no constructor, so nothing else would set it.
+    // Establishes the initial position state. KotlinEmitter emits no constructor, so for a
+    // standalone skeleton this is the only place to do it.
     yyResetPosition()
   }
 
