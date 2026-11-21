@@ -756,6 +756,8 @@ public final class KotlinEmitter extends IEmitter {
 
   private void emitLexFunctHeader(String functionName) {
     if (!scanner.lexThrow().isEmpty() || scanner.scanErrorException() != null) {
+      print("  @Throws(");
+
       for (String thrown : scanner.lexThrow()) {
         print(thrown);
         print("::class, ");
@@ -765,6 +767,8 @@ public final class KotlinEmitter extends IEmitter {
         print(scanner.scanErrorException());
         print("::class, ");
       }
+
+      println(")");
     }
 
     if (scanner.cupCompatible() || scanner.cup2Compatible() || functionName.equals("advance")) {

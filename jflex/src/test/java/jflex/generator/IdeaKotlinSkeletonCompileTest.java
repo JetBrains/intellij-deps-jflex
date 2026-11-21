@@ -49,6 +49,8 @@ public class IdeaKotlinSkeletonCompileTest {
 
   private static final Path SPEC =
       KotlinEmitterTest.moduleFile("src/test/resources/jflex/idea-lexer.flex");
+  private static final Path THROWS_SPEC =
+      KotlinEmitterTest.moduleFile("src/test/resources/jflex/idea-lexer-throws.flex");
   private static final Path OUT_DIR = KotlinEmitterTest.outputDir("IdeaKotlinSkeletonCompileTest");
 
   @Before
@@ -69,8 +71,32 @@ public class IdeaKotlinSkeletonCompileTest {
 
   @Test
   public void generatedScannerCompilesAndLexes() throws Exception {
-    Path scanner = Paths.get(new LexGenerator(SPEC.toFile()).generate());
-    File classes = OUT_DIR.resolve("classes").toFile();
+    File classes = compile(SPEC, "classes");
+
+    // "start" at offset 0 is at the beginning of a line, as is "start" after the newline. If the
+    // zzAtBOL branch loses its newline characters -- the Kotlin `when` has no fall-through -- the
+    // second one lexes as "plain" instead.
+    assertThat(LexerDriver.tokenize(classes, "IdeaLexer", "start\nstart"))
+        .isEqualTo("bol[0,5] other[5,6] bol[6,11]");
+  }
+
+  /**
+   * %yylexthrow and %scanerror put @Throws on advance() and yypushback(). Both emitted code that
+   * did not compile: a bare exception list in front of advance(), and yypushback() missing its
+   * opening brace.
+   */
+  @Test
+  public void exceptionDirectivesCompile() throws Exception {
+    File classes = compile(THROWS_SPEC, "classes-throws");
+
+    // "ab" matches, then pushes "b" back, so "b" is lexed again on its own.
+    assertThat(LexerDriver.tokenize(classes, "IdeaThrowsLexer", "ab"))
+        .isEqualTo("a[0,1] other[1,2]");
+  }
+
+  private static File compile(Path spec, String classesDir) throws Exception {
+    Path scanner = Paths.get(new LexGenerator(spec.toFile()).generate());
+    File classes = OUT_DIR.resolve(classesDir).toFile();
     assertThat(classes.mkdirs() || classes.isDirectory()).isTrue();
 
     ByteArrayOutputStream diagnostics = new ByteArrayOutputStream();
@@ -95,11 +121,6 @@ public class IdeaKotlinSkeletonCompileTest {
             scanner, new String(diagnostics.toByteArray(), StandardCharsets.UTF_8))
         .that(exitCode)
         .isEqualTo(ExitCode.OK);
-
-    // "start" at offset 0 is at the beginning of a line, as is "start" after the newline. If the
-    // zzAtBOL branch loses its newline characters -- the Kotlin `when` has no fall-through -- the
-    // second one lexes as "plain" instead.
-    assertThat(LexerDriver.tokenize(classes, "IdeaLexer", "start\nstart"))
-        .isEqualTo("bol[0,5] other[5,6] bol[6,11]");
+    return classes;
   }
 }
