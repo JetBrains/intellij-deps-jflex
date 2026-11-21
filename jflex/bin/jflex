@@ -22,7 +22,7 @@
 JAVA=java
 
 # Version of JFlex to execute
-JFLEX_VERSION=1.10.18
+JFLEX_VERSION=1.10.19
 
 # end configurables
 #

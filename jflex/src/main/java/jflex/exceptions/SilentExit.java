@@ -9,7 +9,7 @@ package jflex.exceptions;
  * Signals a silent exit (no statistics printout).
  *
  * @author Gerwin Klein
- * @version JFlex 1.10.18
+ * @version JFlex 1.10.19
  */
 public class SilentExit extends Exception {
 

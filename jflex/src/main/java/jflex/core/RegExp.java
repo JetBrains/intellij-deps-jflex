@@ -25,7 +25,7 @@ import jflex.option.Options;
  * <p>This base class has no content other than its type.
  *
  * @author Gerwin Klein
- * @version JFlex 1.10.18
+ * @version JFlex 1.10.19
  */
 public class RegExp {
 
