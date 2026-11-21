@@ -810,18 +810,20 @@ public final class KotlinEmitter extends IEmitter {
       println("        zzCurrentPosL += zzCharCount");
       println("        zzCh = zzBufferL.codePoint(zzCurrentPosL)");
       println("        zzCharCount = charCount(zzCh)");
-      println("        when (zzCh.toChar()) {");
-      println("         '\\u000B', '\\u000C', '\\u0085', '\\u2028', '\\u2029' -> {");
+      // Switch on the Int code point, as Emitter does. zzCh.toChar() would keep only the low 16
+      // bits, so a supplementary code point such as U+2000A would count as a line break.
+      println("        when (zzCh) {");
+      println("         0x0B, 0x0C, 0x85, 0x2028, 0x2029 -> {");
       if (scanner.lineCount()) println("          yyline++");
       if (scanner.columnCount()) println("          yycolumn = 0");
       println("          zzR = false");
       println("          }");
-      println("         '\\r' -> {");
+      println("         '\\r'.code -> {");
       if (scanner.lineCount()) println("          yyline++");
       if (scanner.columnCount()) println("          yycolumn = 0");
       println("          zzR = true");
       println("          }");
-      println("         '\\n' -> {");
+      println("         '\\n'.code -> {");
       println("          if (zzR)");
       println("            zzR = false");
       println("          else {");
