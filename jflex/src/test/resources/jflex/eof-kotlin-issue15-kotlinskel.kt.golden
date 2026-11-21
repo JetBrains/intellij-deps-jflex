@@ -673,7 +673,7 @@ companion object {
    *
    * @param   errorCode  the code of the errormessage to display
    */
-  public fun yypushback(number: Int)  {
+  public fun yypushback(number: Int) {
 
 
   /**

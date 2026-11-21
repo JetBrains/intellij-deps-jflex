@@ -964,7 +964,7 @@ companion object {
    * @param number  the number of characters to be read again.
    *                This number must not be greater than yylength()!
    */
-  public fun yypushback(number: Int)  {
+  public fun yypushback(number: Int) {
     if ( number > yylength() )
       zzScanError(ZZ_PUSHBACK_2BIG)
 

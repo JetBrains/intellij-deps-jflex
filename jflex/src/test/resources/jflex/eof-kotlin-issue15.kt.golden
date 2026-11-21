@@ -398,7 +398,7 @@ class Issue15EofLexer {
       message = ZZ_ERROR_MSG[ZZ_UNKNOWN_ERROR];
     }
 
-  public fun yypushback(number: Int)  {
+  public fun yypushback(number: Int) {
   }
 
 

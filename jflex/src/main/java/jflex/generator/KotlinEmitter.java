@@ -211,10 +211,8 @@ public final class KotlinEmitter extends IEmitter {
     if (scanner.scanErrorException() != null) {
       println("  @Throws(" + scanner.scanErrorException + "::class)");
     }
-    print("  " + visibility + " fun yypushback(number: Int) ");
-    if (scanner.scanErrorException() == null) {
-      println(" {");
-    }
+    // Unlike Java, the exception goes in @Throws above, so the brace is unconditional.
+    println("  " + visibility + " fun yypushback(number: Int) {");
 
     skel.emitNext(); // 9
   }
