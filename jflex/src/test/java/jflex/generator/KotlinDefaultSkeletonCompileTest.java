@@ -10,6 +10,7 @@ import static com.google.common.truth.Truth.assertWithMessage;
 import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.PrintStream;
+import java.lang.reflect.Field;
 import java.lang.reflect.Method;
 import java.net.URL;
 import java.net.URLClassLoader;
@@ -145,6 +146,21 @@ public class KotlinDefaultSkeletonCompileTest {
   }
 
   /**
+   * U+2000A is a CJK Extension B letter whose low 16 bits are {@code '\n'}. The line and column
+   * count must switch on the whole code point: truncating it to a {@code Char} counted U+2000A as a
+   * newline (issue #17). Every token here is {@code [^]} or ignored whitespace, so the positions
+   * are those of {@code 𠀊}, {@code x} and {@code y}; the surrogate pair counts as 2 columns.
+   */
+  @Test
+  public void countsSupplementaryCodePointAsOneNonNewlineCharacter() throws Exception {
+    assertThat(positions("𠀊x y")).isEqualTo("0:0 0:2 0:4");
+    // U+2000B..U+2000D and U+12028 truncate to the other line terminators.
+    assertThat(positions("𠀋𠀌𠀍𒀨x")).isEqualTo("0:0 0:2 0:4 0:6 0:8");
+    // Real line terminators still count.
+    assertThat(positions("a\nb\r\nc d")).isEqualTo("0:0 0:1 1:0 1:1 2:0 2:1 3:0");
+  }
+
+  /**
    * Refilling is the part of a streaming skeleton that a short input never reaches, and the
    * surrogate-boundary case is the part of refilling that is easy to get wrong: a supplementary
    * code point whose high surrogate lands in the buffer's last free position must not be split, or
@@ -194,6 +210,23 @@ public class KotlinDefaultSkeletonCompileTest {
     return lex(input).size();
   }
 
+  /** Lexes {@code input} and returns {@code yyline:yycolumn} at each token, joined by spaces. */
+  private String positions(String input) throws Exception {
+    return String.join(
+        " ", lex(input, (token, lexer) -> field(lexer, "yyline") + ":" + field(lexer, "yycolumn")));
+  }
+
+  private static Object field(Object lexer, String name) throws Exception {
+    Field field = lexer.getClass().getDeclaredField(name);
+    field.setAccessible(true);
+    return field.get(lexer);
+  }
+
+  /** Observes the scanner after each token. */
+  private interface TokenObserver<T> {
+    T observe(int token, Object lexer) throws Exception;
+  }
+
   /**
    * Loads the freshly compiled scanner and runs it to exhaustion.
    *
@@ -202,6 +235,10 @@ public class KotlinDefaultSkeletonCompileTest {
    * constructor lookup work.
    */
   private List<Integer> lex(String input) throws Exception {
+    return lex(input, (token, lexer) -> token);
+  }
+
+  private <T> List<T> lex(String input, TokenObserver<T> observer) throws Exception {
     Buffer buffer = new Buffer();
     Utf8Kt.writeString(buffer, input, 0, input.length());
 
@@ -211,13 +248,13 @@ public class KotlinDefaultSkeletonCompileTest {
       Object lexer = scanner.getDeclaredConstructor(Source.class).newInstance(buffer);
       Method yylex = scanner.getMethod("yylex");
 
-      List<Integer> tokens = new ArrayList<>();
+      List<T> tokens = new ArrayList<>();
       while (true) {
         int token = (Integer) yylex.invoke(lexer);
         if (token == -1) { // YYEOF, the %int default EOF value
           return tokens;
         }
-        tokens.add(token);
+        tokens.add(observer.observe(token, lexer));
       }
     }
   }
